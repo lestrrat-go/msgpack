@@ -694,3 +694,39 @@ func TestEncodeBytes(t *testing.T) {
 		}
 	})
 }
+
+type testEncodeStruct struct {
+	Foo int
+	Bar struct {
+		BarContent string `msgpack:"bar.content"`
+	} `msgpack:"bar"`
+	Baz string `msgpack:",omitempty"`
+	Quux string `msgpack:"-"`
+}
+
+func TestEncodeStruct(t *testing.T) {
+	var v = testEncodeStruct {
+		Foo: 100,
+		Quux: "quux",
+	}
+	v.Bar.BarContent = "Hello, World!"
+
+	mapb := msgpack.NewMapBuilder()
+	mapb.Encode("Foo", 100)
+	mapb.Encode("bar", v.Bar)
+	e, err := mapb.Bytes()
+	if !assert.NoError(t, err, "MapBuilder.Bytes() should succeed") {
+		return
+	}
+
+	t.Run("encode via Marshal", func(t *testing.T) {
+		b, err := msgpack.Marshal(v)
+		if !assert.NoError(t, err, `Marshal should succeed`) {
+			return
+		}
+
+		if !assert.Equal(t, e, b, `Output should match`) {
+			return
+		}
+	})
+}

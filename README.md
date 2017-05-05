@@ -32,12 +32,12 @@ func init() {
 func (t *EventTime) DecodeMsgpackExt(r msgpack.Reader) error {
   sec, err := r.ReadUint32()
   if err != nil {
-    return errors.Wrap(err, `failed to read uint32 from first 32 bytes`)
+    return errors.Wrap(err, `failed to read uint32 from first 4 bytes`)
   }
 
   nsec, err := r.ReadUint32()
   if err != nil {
-    return errors.Wrap(err, `failed to read uint32 from second 32 bytes`)
+    return errors.Wrap(err, `failed to read uint32 from second 4 bytes`)
   }
 
   t.Time = time.Unix(int64(sec), int64(nsec)).UTC()
@@ -134,7 +134,7 @@ func ExampleFluentdMessage() {
 
 # STATUS
 
-* Testing for array/map types
+* Requires more testing for array/map types
 * Structs are not yet (directly) supported, but it currently works if you declare the `EncodeMsgpack` method and the `DecodeMsgpack` method, respectively
 * No performance comparisons have been made. For all practical purposes this library could easily be the slowest of them all.
 

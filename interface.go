@@ -158,8 +158,12 @@ type ArrayBuilder interface {
 
 // MapBuilder is used to build a msgpack map
 type MapBuilder interface {
+	io.WriterTo
+
+	Bytes() ([]byte, error)
 	Count() int
 	Encode(string, interface{}) error
+	Reset()
 }
 
 // Writer handles low-level writing to an io.Writer

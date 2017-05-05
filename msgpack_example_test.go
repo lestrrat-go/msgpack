@@ -21,12 +21,12 @@ func init() {
 func (t *EventTime) DecodeMsgpackExt(r msgpack.Reader) error {
 	sec, err := r.ReadUint32()
 	if err != nil {
-		return errors.Wrap(err, `failed to read uint32 from first 32 bytes`)
+		return errors.Wrap(err, `failed to read uint32 from first 4 bytes`)
 	}
 
 	nsec, err := r.ReadUint32()
 	if err != nil {
-		return errors.Wrap(err, `failed to read uint32 from second 32 bytes`)
+		return errors.Wrap(err, `failed to read uint32 from second 4 bytes`)
 	}
 
 	t.Time = time.Unix(int64(sec), int64(nsec)).UTC()
