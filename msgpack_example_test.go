@@ -29,7 +29,7 @@ func (t *EventTime) DecodeMsgpackExt(r msgpack.Reader) error {
 		return errors.Wrap(err, `failed to read uint32 from second 32 bytes`)
 	}
 
-	t.Time = time.Unix(int64(sec), int64(nsec))
+	t.Time = time.Unix(int64(sec), int64(nsec)).UTC()
 	return nil
 }
 
@@ -47,7 +47,7 @@ func (t EventTime) EncodeMsgpackExt(w msgpack.Writer) error {
 
 func ExampleMsgpackExt_MarshalUnmarshal() {
 	var t1 EventTime
-	t1.Time = time.Unix(1234567890, 123)
+	t1.Time = time.Unix(1234567890, 123).UTC()
 
 	b, err := msgpack.Marshal(t1)
 	if err != nil {
@@ -97,7 +97,7 @@ func (m *FluentdMessage) DecodeMsgpack(e *msgpack.Decoder) error {
 func ExampleFluentdMessage() {
 	var f1 = FluentdMessage{
 		Tag:    "foo",
-		Time:   EventTime{Time: time.Unix(1234567890, 123)},
+		Time:   EventTime{Time: time.Unix(1234567890, 123).UTC()},
 		Record: map[string]interface{}{
 			"count": 100,
 		},
@@ -117,5 +117,5 @@ func ExampleFluentdMessage() {
 
 	fmt.Printf("%s %s %v %v\n", f2.Tag, f2.Time, f2.Record, f2.Option)
 	// OUTPUT:
-	// foo 2009-02-14 08:31:30.000000123 +0900 JST map[count:100] <nil>
+	// foo 2009-02-13 23:31:30.000000123 +0000 UTC map[count:100] <nil>
 }
