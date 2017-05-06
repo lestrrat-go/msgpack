@@ -6,6 +6,8 @@ import (
 	"reflect"
 )
 
+// Code represents the first by in a msgpack element. It tell us
+// the data layout that follows it
 type Code byte
 
 const (

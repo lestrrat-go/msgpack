@@ -2,7 +2,6 @@ package msgpack
 
 import (
 	"bufio"
-	"encoding/binary"
 	"io"
 	"math"
 	"reflect"
@@ -73,22 +72,22 @@ type floatDecoder struct {
 }
 
 func (d *floatDecoder) Decode(r io.Reader) (reflect.Value, error) {
-	var size = 8
-	if d.code == Float {
-		size = 4
-	}
-
-	buf := make([]byte, size)
-	if err := readFixedLen(r, buf); err != nil {
-		return zeroval, errors.Wrap(err, `msgpack: failed to decode Float/Double`)
-	}
-
-	if d.code == Float {
-		n := binary.BigEndian.Uint32(buf)
+	rdr := NewReader(r)
+	switch d.code {
+	case Float:
+		n, err := rdr.ReadUint32()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to read uint32 for Float`)
+		}
 		return reflect.ValueOf(math.Float32frombits(n)), nil
-	} else {
-		n := binary.BigEndian.Uint64(buf)
+	case Double:
+		n, err := rdr.ReadUint64()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to read uint64 for Float`)
+		}
 		return reflect.ValueOf(math.Float64frombits(n)), nil
+	default:
+		return zeroval, errors.Errorf(`msgpack: unknown float code %s`, d.code)
 	}
 }
 
@@ -97,30 +96,34 @@ type uintDecoder struct {
 }
 
 func (d *uintDecoder) Decode(r io.Reader) (reflect.Value, error) {
-	var size = 8
+	rdr := NewReader(r)
 	switch d.code {
 	case Uint8:
-		size = 1
+		v, err := rdr.ReadUint8()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to decode uint8`)
+		}
+		return reflect.ValueOf(v), nil
 	case Uint16:
-		size = 2
+		v, err := rdr.ReadUint16()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to decode uint16`)
+		}
+		return reflect.ValueOf(v), nil
 	case Uint32:
-		size = 4
-	}
-
-	buf := make([]byte, size)
-	if err := readFixedLen(r, buf); err != nil {
-		return zeroval, errors.Wrap(err, `msgpack: failed to decode Uint`)
-	}
-
-	switch d.code {
-	case Uint8:
-		return reflect.ValueOf(uint8(buf[0])), nil
-	case Uint16:
-		return reflect.ValueOf(binary.BigEndian.Uint16(buf)), nil
-	case Uint32:
-		return reflect.ValueOf(binary.BigEndian.Uint32(buf)), nil
+		v, err := rdr.ReadUint32()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to decode uint32`)
+		}
+		return reflect.ValueOf(v), nil
+	case Uint64:
+		v, err := rdr.ReadUint64()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to decode uint64`)
+		}
+		return reflect.ValueOf(v), nil
 	default:
-		return reflect.ValueOf(binary.BigEndian.Uint64(buf)), nil
+		return zeroval, errors.Errorf(`msgpack: invalid code %s for uint`, d.code)
 	}
 }
 
@@ -129,30 +132,34 @@ type intDecoder struct {
 }
 
 func (d *intDecoder) Decode(r io.Reader) (reflect.Value, error) {
-	var size = 8
+	rdr := NewReader(r)
 	switch d.code {
 	case Int8:
-		size = 1
+		v, err := rdr.ReadUint8()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to decode int8`)
+		}
+		return reflect.ValueOf(int8(v)), nil
 	case Int16:
-		size = 2
+		v, err := rdr.ReadUint16()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to decode int16`)
+		}
+		return reflect.ValueOf(int16(v)), nil
 	case Int32:
-		size = 4
-	}
-
-	buf := make([]byte, size)
-	if err := readFixedLen(r, buf); err != nil {
-		return zeroval, errors.Wrap(err, `msgpack: failed to decode Int`)
-	}
-
-	switch d.code {
-	case Int8:
-		return reflect.ValueOf(int8(buf[0])), nil
-	case Int16:
-		return reflect.ValueOf(int16(binary.BigEndian.Uint16(buf))), nil
-	case Int32:
-		return reflect.ValueOf(int32(binary.BigEndian.Uint32(buf))), nil
+		v, err := rdr.ReadUint32()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to decode uint32`)
+		}
+		return reflect.ValueOf(int32(v)), nil
+	case Int64:
+		v, err := rdr.ReadUint64()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to decode int64`)
+		}
+		return reflect.ValueOf(int64(v)), nil
 	default:
-		return reflect.ValueOf(int64(binary.BigEndian.Uint64(buf))), nil
+		return zeroval, errors.Errorf(`msgpack: invalid code %s for int`, d.code)
 	}
 }
 
@@ -161,27 +168,27 @@ type strDecoder struct {
 }
 
 func (d *strDecoder) Decode(r io.Reader) (reflect.Value, error) {
-	var size = 4
-	switch d.code {
-	case Str8, Bin8:
-		size = 1
-	case Str16, Bin16:
-		size = 2
-	}
-
-	b := make([]byte, size)
-	if err := readFixedLen(r, b); err != nil {
-		return zeroval, errors.Wrap(err, `msgpack: failed to decode Int`)
-	}
-
+	rdr := NewReader(r)
 	var l int64
 	switch d.code {
 	case Str8, Bin8:
-		l = int64(b[0])
+		v, err := rdr.ReadUint8()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+		}
+		l = int64(v)
 	case Str16, Bin16:
-		l = int64(binary.BigEndian.Uint16(b))
+		v, err := rdr.ReadUint16()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+		}
+		l = int64(v)
 	case Str32, Bin32:
-		l = int64(binary.BigEndian.Uint32(b))
+		v, err := rdr.ReadUint32()
+		if err != nil {
+			return zeroval, errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+		}
+		l = int64(v)
 	}
 
 	buf := bufferpool.Get()
@@ -387,39 +394,6 @@ func (d *structDecoder) Decode(r io.Reader) (reflect.Value, error) {
 	}
 
 	return s, nil
-}
-
-// read a fixed length serialized message, where the first byte is a msgpack
-// code, and N bytes which is dictated by the type follows it.
-func readFixedLen(r io.Reader, buf []byte) error {
-	if err := read(r, buf, len(buf)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to read buffer`)
-	}
-
-	// There are valid cases where there is no payload (e.g. Nil, False, True...)
-	if buf == nil {
-		return nil
-	}
-
-	return nil
-}
-
-func read(r io.Reader, buf []byte, size int) error {
-	if len(buf) < size {
-		return errors.Errorf(`buffer (%d bytes) is too small to hold %d bytes`, len(buf), size)
-	}
-
-	var bytesRead int
-	for bytesRead < size {
-		n, err := r.Read(buf)
-		if n == 0 && err != nil {
-			return errors.Wrap(err, `failed to read from source`)
-		}
-
-		bytesRead += n
-		buf = buf[n:]
-	}
-	return nil
 }
 
 type extDecoder struct {
