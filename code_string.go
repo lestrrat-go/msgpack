@@ -8,18 +8,16 @@ const (
 	_Code_name_0 = "InvalidCode"
 	_Code_name_1 = "FixedArrayMask"
 	_Code_name_2 = "FixedStrMask"
-	_Code_name_3 = "PosFixedNumHighFixedMapLow"
-	_Code_name_4 = "FixedMapHighFixArray0FixArray1FixArray2FixArray3FixArray4FixArray5FixArray6FixArray7FixArray8FixArray9FixArray10FixArray11FixArray12FixArray13FixArray14FixArray15FixStr0FixStr1FixStr2FixStr3FixStr4FixStr5FixStr6FixStr7FixStr8FixStr9FixStr10FixStr11FixStr12FixStr13FixStr14FixStr15FixStr16FixStr17FixStr18FixStr19FixStr20FixStr21FixStr22FixStr23FixStr24FixStr25FixStr26FixStr27FixStr28FixStr29FixStr30FixStr31Nil"
-	_Code_name_5 = "FalseTrueBin8Bin16Bin32Ext8Ext16Ext32FloatDoubleUint8Uint16Uint32Uint64Int8Int16Int32Int64FixExt1FixExt2FixExt4FixExt8FixExt16Str8Str16Str32Array16Array32Map16Map32NegFixedNumLow"
+	_Code_name_3 = "PosFixedNumHighFixMap0FixMap1FixMap2FixMap3FixMap4FixMap5FixMap6FixMap7FixMap8FixMap9FixMap10FixMap11FixMap12FixMap13FixMap14FixMap15FixArray0FixArray1FixArray2FixArray3FixArray4FixArray5FixArray6FixArray7FixArray8FixArray9FixArray10FixArray11FixArray12FixArray13FixArray14FixArray15FixStr0FixStr1FixStr2FixStr3FixStr4FixStr5FixStr6FixStr7FixStr8FixStr9FixStr10FixStr11FixStr12FixStr13FixStr14FixStr15FixStr16FixStr17FixStr18FixStr19FixStr20FixStr21FixStr22FixStr23FixStr24FixStr25FixStr26FixStr27FixStr28FixStr29FixStr30FixStr31Nil"
+	_Code_name_4 = "FalseTrueBin8Bin16Bin32Ext8Ext16Ext32FloatDoubleUint8Uint16Uint32Uint64Int8Int16Int32Int64FixExt1FixExt2FixExt4FixExt8FixExt16Str8Str16Str32Array16Array32Map16Map32NegFixedNumLow"
 )
 
 var (
 	_Code_index_0 = [...]uint8{0, 11}
 	_Code_index_1 = [...]uint8{0, 14}
 	_Code_index_2 = [...]uint8{0, 12}
-	_Code_index_3 = [...]uint8{0, 15, 26}
-	_Code_index_4 = [...]uint16{0, 12, 21, 30, 39, 48, 57, 66, 75, 84, 93, 102, 112, 122, 132, 142, 152, 162, 169, 176, 183, 190, 197, 204, 211, 218, 225, 232, 240, 248, 256, 264, 272, 280, 288, 296, 304, 312, 320, 328, 336, 344, 352, 360, 368, 376, 384, 392, 400, 408, 411}
-	_Code_index_5 = [...]uint8{0, 5, 9, 13, 18, 23, 27, 32, 37, 42, 48, 53, 59, 65, 71, 75, 80, 85, 90, 97, 104, 111, 118, 126, 130, 135, 140, 147, 154, 159, 164, 178}
+	_Code_index_3 = [...]uint16{0, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 93, 101, 109, 117, 125, 133, 142, 151, 160, 169, 178, 187, 196, 205, 214, 223, 233, 243, 253, 263, 273, 283, 290, 297, 304, 311, 318, 325, 332, 339, 346, 353, 361, 369, 377, 385, 393, 401, 409, 417, 425, 433, 441, 449, 457, 465, 473, 481, 489, 497, 505, 513, 521, 529, 532}
+	_Code_index_4 = [...]uint8{0, 5, 9, 13, 18, 23, 27, 32, 37, 42, 48, 53, 59, 65, 71, 75, 80, 85, 90, 97, 104, 111, 118, 126, 130, 135, 140, 147, 154, 159, 164, 178}
 )
 
 func (i Code) String() string {
@@ -30,15 +28,12 @@ func (i Code) String() string {
 		return _Code_name_1
 	case i == 31:
 		return _Code_name_2
-	case 127 <= i && i <= 128:
+	case 127 <= i && i <= 192:
 		i -= 127
 		return _Code_name_3[_Code_index_3[i]:_Code_index_3[i+1]]
-	case 143 <= i && i <= 192:
-		i -= 143
-		return _Code_name_4[_Code_index_4[i]:_Code_index_4[i+1]]
 	case 194 <= i && i <= 224:
 		i -= 194
-		return _Code_name_5[_Code_index_5[i]:_Code_index_5[i+1]]
+		return _Code_name_4[_Code_index_4[i]:_Code_index_4[i+1]]
 	default:
 		return fmt.Sprintf("Code(%d)", i)
 	}

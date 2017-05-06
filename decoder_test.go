@@ -804,3 +804,37 @@ func TestDecodeFixStr(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeStruct(t *testing.T) {
+	var buf bytes.Buffer
+	w := msgpack.NewWriter(&buf)
+	w.WriteByte(msgpack.FixMap2.Byte())
+	w.WriteByte(msgpack.FixStr3.Byte())
+	w.Write([]byte("Foo"))
+	w.WriteByte(msgpack.Int8.Byte())
+	w.WriteUint8(uint8(100))
+	w.WriteByte(msgpack.FixStr3.Byte())
+	w.Write([]byte("bar"))
+	w.WriteByte(msgpack.FixMap1.Byte())
+	w.WriteByte(msgpack.FixStr11.Byte())
+	w.Write([]byte("bar.content"))
+	w.WriteByte(msgpack.FixStr13.Byte())
+	w.Write([]byte("Hello, World!"))
+	b := buf.Bytes()
+
+	var e = testStruct{
+		Foo: 100,
+	}
+	e.Bar.BarContent = "Hello, World!"
+
+	t.Run("decode via Unmarshal", func(t *testing.T) {
+		var v testStruct
+		if !assert.NoError(t, msgpack.Unmarshal(b, &v), "Unmarshal should succeed") {
+			return
+		}
+
+		if !assert.Equal(t, e, v, "value should be %s", e) {
+			return
+		}
+	})
+}

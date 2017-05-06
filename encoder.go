@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"strings"
 
 	bufferpool "github.com/lestrrat/go-bufferpool"
 	"github.com/pkg/errors"
@@ -84,6 +85,8 @@ func (e *Encoder) Encode(v interface{}) error {
 		return e.EncodeArray(l)
 	case reflect.Map:
 		return e.EncodeMap(v)
+	case reflect.Struct:
+		return e.EncodeStruct(v)
 	}
 
 	//	return enc.Encode(e.w)
@@ -329,9 +332,7 @@ func (e *Encoder) EncodeMap(v interface{}) error {
 		return errors.Errorf(`msgpack: keys to maps must be strings (not %s)`, rv.Type().Key())
 	}
 
-	buf := bufferpool.Get()
-	defer bufferpool.Release(buf)
-	mapb := NewMapBuilder(buf)
+	mapb := NewMapBuilder()
 	for _, key := range rv.MapKeys() {
 		value := rv.MapIndex(key)
 		if err := mapb.Encode(key.Interface().(string), value.Interface()); err != nil {
@@ -339,20 +340,60 @@ func (e *Encoder) EncodeMap(v interface{}) error {
 		}
 	}
 
-	switch c := mapb.Count(); {
-	case c < 16:
-		e.w.WriteByte(FixMap0.Byte() + byte(c))
-	case c < math.MaxUint16:
-		e.w.WriteByte(Map16.Byte())
-		e.w.WriteUint16(uint16(c))
-	case c < math.MaxUint32:
-		e.w.WriteByte(Map32.Byte())
-		e.w.WriteUint32(uint32(c))
-	default:
-		return errors.Errorf(`msgpack: map element count out of range (%d)`, c)
+	if _, err := mapb.WriteTo(e.w); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write map payload`)
+	}
+	return nil
+}
+
+func parseMsgpackTag(rv reflect.StructField) (string, bool) {
+	var name = rv.Name
+	var omitempty bool
+	if tag := rv.Tag.Get(`msgpack`); tag != "" {
+		l := strings.Split(tag, ",")
+		if len(l) > 0 && l[0] != "" {
+			name = l[0]
+		}
+
+		if len(l) > 1 && l[1] == "omitempty" {
+			omitempty = true
+		}
+	}
+	return name, omitempty
+}
+
+func (e *Encoder) EncodeStruct(v interface{}) error {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Struct {
+		return errors.Errorf(`msgpack: argument to EncodeStruct must be a struct (not %s)`, rv.Type())
+	}
+	mapb := NewMapBuilder()
+
+	rt := rv.Type()
+	for i := 0; i < rt.NumField(); i++ {
+		ft := rt.Field(i)
+		if ft.PkgPath != "" {
+			continue
+		}
+
+		name, omitempty := parseMsgpackTag(ft)
+		if name == "-" {
+			continue
+		}
+
+		field := rv.Field(i)
+		if omitempty {
+			if reflect.DeepEqual(field.Interface(), reflect.Zero(field.Type()).Interface()) {
+				continue
+			}
+		}
+
+		if err := mapb.Encode(name, field.Interface()); err != nil {
+			return errors.Wrap(err, `msgpack: failed to encode struct field`)
+		}
 	}
 
-	if _, err := buf.WriteTo(e.w); err != nil {
+	if _, err := mapb.WriteTo(e.w); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write map payload`)
 	}
 	return nil
