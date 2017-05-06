@@ -34,8 +34,8 @@ var decoders = map[Code]valueDecoder{
 	Bin8:    &strDecoder{code: Bin8},
 	Bin16:   &strDecoder{code: Bin16},
 	Bin32:   &strDecoder{code: Bin32},
-	Array16:   &arrayDecoder{code: Array16},
-	Array32:   &arrayDecoder{code: Array32},
+	Array16: &arrayDecoder{code: Array16},
+	Array32: &arrayDecoder{code: Array32},
 	Map16:   &mapDecoder{code: Map16},
 	Map32:   &mapDecoder{code: Map32},
 }
@@ -302,6 +302,91 @@ func (d *mapDecoder) Decode(r io.Reader) (reflect.Value, error) {
 	}
 
 	return reflect.ValueOf(m), nil
+}
+
+type structDecoder struct {
+	code   Code
+	target reflect.Type
+}
+
+func (d *structDecoder) Decode(r io.Reader) (reflect.Value, error) {
+	var size int
+	if d.code >= FixMap0 && d.code <= FixMap15 {
+		size = int(d.code.Byte() - FixMap0.Byte())
+	} else {
+		rdr := NewReader(r)
+		switch d.code {
+		case Map16:
+			s, err := rdr.ReadUint16()
+			if err != nil {
+				return zeroval, errors.Wrap(err, `msgpack: failed to read map size for Map16`)
+			}
+			size = int(s)
+		case Map32:
+			s, err := rdr.ReadUint32()
+			if err != nil {
+				return zeroval, errors.Wrap(err, `msgpack: failed to read map size for Map32`)
+			}
+			size = int(s)
+		default:
+			return zeroval, errors.Errorf(`msgpack: unsupported map type %s`, d.code)
+		}
+	}
+
+	dec := NewDecoder(r)
+	var s = reflect.New(d.target)
+
+	// XXX: This needs caching
+	name2field := map[string]reflect.Value{}
+	for i := 0; i < d.target.NumField(); i++ {
+		field := d.target.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+
+		name, _ := parseMsgpackTag(field)
+		if name == "-" {
+			continue
+		}
+
+		name2field[name] = s.Elem().Field(i)
+	}
+
+	var key string
+	var value interface{}
+	for i := 0; i < size; i++ {
+		if err := dec.Decode(&key); err != nil {
+			return zeroval, errors.Wrapf(err, `msgpack: failed to decode struct key at index %d`, i)
+		}
+
+		f, ok := name2field[key]
+		if !ok {
+			continue
+		}
+
+		if f.Kind() == reflect.Struct {
+			if err := dec.Decode(f.Addr().Interface()); err != nil {
+				return zeroval, errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+			}
+		} else if f.Kind() == reflect.Ptr && f.Type().Elem().Kind() == reflect.Struct {
+			if err := dec.Decode(f.Interface()); err != nil {
+				return zeroval, errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+			}
+		} else {
+			if err := dec.Decode(&value); err != nil {
+				return zeroval, errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+			}
+
+			fv := reflect.ValueOf(value)
+			if !fv.Type().ConvertibleTo(f.Type()) {
+				return zeroval, errors.Errorf(`msgpack: cannot convert from %s to %s`, fv.Type(), f.Type())
+			}
+			f.Set(reflect.ValueOf(value).Convert(f.Type()))
+		}
+
+	}
+
+	return s, nil
 }
 
 // read a fixed length serialized message, where the first byte is a msgpack
@@ -576,9 +661,17 @@ func (d *Decoder) Decode(v interface{}) error {
 	}
 	d.r.ReadByte() // throw away code
 
-	dec, err := lookupDecoder(code)
-	if err != nil {
-		return errors.Wrapf(err, `msgpack: failed to lookup decoder for code %s`, code)
+	var dec valueDecoder
+	// Special case: If the object is a Map type, and the target object
+	// is a Struct, we do the struct decoding bit
+	if IsMapFamily(code) && rv.Type().Elem().Kind() == reflect.Struct {
+		dec = &structDecoder{code: code, target: rv.Type().Elem()}
+	} else {
+		var err error
+		dec, err = lookupDecoder(code)
+		if err != nil {
+			return errors.Wrapf(err, `msgpack: failed to lookup decoder for code %s`, code)
+		}
 	}
 
 	decoded, err := dec.Decode(d.r)

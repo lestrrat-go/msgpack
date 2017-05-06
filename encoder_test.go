@@ -695,7 +695,7 @@ func TestEncodeBytes(t *testing.T) {
 	})
 }
 
-type testEncodeStruct struct {
+type testStruct struct {
 	Foo int
 	Bar struct {
 		BarContent string `msgpack:"bar.content"`
@@ -705,7 +705,7 @@ type testEncodeStruct struct {
 }
 
 func TestEncodeStruct(t *testing.T) {
-	var v = testEncodeStruct {
+	var v = testStruct {
 		Foo: 100,
 		Quux: "quux",
 	}
