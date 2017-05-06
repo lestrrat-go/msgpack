@@ -10,6 +10,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// NewEncoder creates a new Encoder that writes serialized forms
+// to the specified io.Writer
+//
+// Note that Encoders are NEVER meant to be shared concurrently
+// between goroutines. You DO NOT write serialized data concurrently
+// to the same destination.
 func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{
 		w: NewWriter(w),
@@ -132,7 +138,6 @@ func (e *Encoder) EncodeFloat32(f float32) error {
 	if err := e.w.WriteByte(Float.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Float code`)
 	}
-
 	if err := e.w.WriteUint32(math.Float32bits(f)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Float payload`)
 	}
