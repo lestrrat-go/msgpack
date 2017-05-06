@@ -134,8 +134,7 @@ func ExampleFluentdMessage() {
 
 # STATUS
 
-* Requires more testing for array/map types
-* Structs are not yet (directly) supported, but it currently works if you declare the `EncodeMsgpack` method and the `DecodeMsgpack` method, respectively
+* Requires more testing for array/map/struct types
 * No performance comparisons have been made. For all practical purposes this library could easily be the slowest of them all.
 
 # DESCRIPTION
