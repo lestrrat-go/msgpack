@@ -1,8 +1,6 @@
 package msgpack
 
 import (
-	"bytes"
-	"encoding/binary"
 	"io"
 	"math"
 	"reflect"
@@ -18,10 +16,9 @@ func NewEncoder(w io.Writer) *Encoder {
 	}
 }
 
-func isExtType(v interface{}) (int, bool) {
-	rt := reflect.TypeOf(v)
+func isExtType(t reflect.Type) (int, bool) {
 	muExtEncode.RLock()
-	typ, ok := extEncodeRegistry[rt]
+	typ, ok := extEncodeRegistry[t]
 	muExtEncode.RUnlock()
 	if ok {
 		return typ, true
@@ -30,49 +27,74 @@ func isExtType(v interface{}) (int, bool) {
 	return 0, false
 }
 
+var encodeMsgpackerType = reflect.TypeOf((*EncodeMsgpacker)(nil)).Elem()
+
+func isEncodeMsgpacker(t reflect.Type) bool {
+	return t.Implements(encodeMsgpackerType)
+}
+
 var byteType = reflect.TypeOf(byte(0))
 
 func (e *Encoder) Encode(v interface{}) error {
-	if typ, ok := isExtType(v); ok {
-		return e.EncodeExt(typ, v.(EncodeMsgpackExter))
+	switch v.(type) {
+	case string:
+		return e.EncodeString(v.(string))
+	case bool:
+		return e.EncodeBool(v.(bool))
+	case float32:
+		return e.EncodeFloat32(v.(float32))
+	case float64:
+		return e.EncodeFloat64(v.(float64))
+	case uint:
+		return e.EncodeUint64(uint64(v.(uint)))
+	case uint8:
+		return e.EncodeUint8(v.(uint8))
+	case uint16:
+		return e.EncodeUint16(v.(uint16))
+	case uint32:
+		return e.EncodeUint32(v.(uint32))
+	case uint64:
+		return e.EncodeUint64(v.(uint64))
+	case int:
+		return e.EncodeInt64(int64(v.(int)))
+	case int8:
+		return e.EncodeInt8(v.(int8))
+	case int16:
+		return e.EncodeInt16(v.(int16))
+	case int32:
+		return e.EncodeInt32(v.(int32))
+	case int64:
+		return e.EncodeInt64(v.(int64))
 	}
 
-	if em, ok := v.(EncodeMsgpacker); ok {
-		return em.EncodeMsgpack(e)
-	}
-
+	// Find the first non-pointer, non-interface{}
 	rv := reflect.ValueOf(v)
+INDIRECT:
+	for {
+		if !rv.IsValid() {
+			return e.EncodeNil()
+		}
+		if typ, ok := isExtType(rv.Type()); ok {
+			return e.EncodeExt(typ, rv.Interface().(EncodeMsgpackExter))
+		}
+
+		if ok := isEncodeMsgpacker(rv.Type()); ok {
+			return rv.Interface().(EncodeMsgpacker).EncodeMsgpack(e)
+		}
+		switch rv.Kind() {
+		case reflect.Ptr, reflect.Interface:
+			rv = rv.Elem()
+		default:
+			break INDIRECT
+		}
+	}
+
 	if !rv.IsValid() {
 		return e.EncodeNil()
 	}
 
+	v = rv.Interface()
 	switch rv.Kind() {
-	case reflect.Bool:
-		return e.EncodeBool(v.(bool))
-	case reflect.Float32:
-		return e.EncodeFloat32(v.(float32))
-	case reflect.Float64:
-		return e.EncodeFloat64(v.(float64))
-	case reflect.Uint8:
-		return e.EncodeUint8(v.(uint8))
-	case reflect.Uint16:
-		return e.EncodeUint16(v.(uint16))
-	case reflect.Uint32:
-		return e.EncodeUint32(v.(uint32))
-	case reflect.Uint64:
-		return e.EncodeUint64(v.(uint64))
-	case reflect.Int8:
-		return e.EncodeInt8(v.(int8))
-	case reflect.Int16:
-		return e.EncodeInt16(v.(int16))
-	case reflect.Int32:
-		return e.EncodeInt32(v.(int32))
-	case reflect.Int64:
-		return e.EncodeInt64(v.(int64))
-	case reflect.Int:
-		return e.EncodeInt64(int64(v.(int)))
-	case reflect.String:
-		return e.EncodeString(v.(string))
 	case reflect.Slice:
 		if rv.Type().Elem() == byteType {
 			return e.EncodeBytes(v.([]byte))
@@ -89,7 +111,6 @@ func (e *Encoder) Encode(v interface{}) error {
 		return e.EncodeStruct(v)
 	}
 
-	//	return enc.Encode(e.w)
 	return errors.Errorf(`msgpack: encode unimplemented for type %s`, rv.Type())
 }
 
@@ -236,54 +257,53 @@ func (e *Encoder) EncodeBytes(b []byte) error {
 		return errors.Errorf(`msgpack: string is too long (len=%d)`, l)
 	}
 
-	return encodeBuffer(code, w, e.w, bytes.NewBuffer(b))
+	if err := e.writePreamble(code, w, l); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write []byte preamble`)
+	}
+	e.w.Write(b)
+	return nil
 }
 
 func (e *Encoder) EncodeString(s string) error {
 	l := len(s)
-
-	var w int
-	var code Code
 	switch {
 	case l < 32:
-		code = Code(byte(l) + FixStr0.Byte())
+		e.w.WriteByte(FixStr0.Byte() | uint8(l))
 	case l <= math.MaxUint8:
-		code = Str8
-		w = 1
+		e.w.WriteByte(Str8.Byte())
+		e.w.WriteUint8(uint8(l))
 	case l <= math.MaxUint16:
-		code = Str16
-		w = 2
+		e.w.WriteByte(Str16.Byte())
+		e.w.WriteUint16(uint16(l))
 	case l <= math.MaxUint32:
-		code = Str32
-		w = 4
+		e.w.WriteByte(Str32.Byte())
+		e.w.WriteUint32(uint32(l))
 	default:
 		return errors.Errorf(`msgpack: string is too long (len=%d)`, l)
 	}
 
-	return encodeBuffer(code, w, e.w, bytes.NewBufferString(s))
+	io.WriteString(e.w, s)
+	return nil
 }
 
-func encodeBuffer(code Code, w int, dst Writer, buf *bytes.Buffer) error {
-	if err := dst.WriteByte(code.Byte()); err != nil {
+func (e *Encoder) writePreamble(code Code, w int, l int) error {
+	if err := e.w.WriteByte(code.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write code`)
 	}
 
-	l := buf.Len()
 	switch w {
 	case 1:
-		dst.WriteUint8(uint8(l))
+		if err := e.w.WriteUint8(uint8(l)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write length`)
+		}
 	case 2:
-		if err := binary.Write(dst, binary.BigEndian, uint16(l)); err != nil {
+		if err := e.w.WriteUint16(uint16(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write length`)
 		}
 	case 4:
-		if err := binary.Write(dst, binary.BigEndian, uint32(l)); err != nil {
+		if err := e.w.WriteUint32(uint32(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write length`)
 		}
-	}
-
-	if _, err := io.Copy(dst, buf); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Str/Bin body`)
 	}
 	return nil
 }
@@ -402,6 +422,7 @@ func (e *Encoder) EncodeStruct(v interface{}) error {
 func (e *Encoder) EncodeExt(typ int, v EncodeMsgpackExter) error {
 	buf := bufferpool.Get()
 	defer bufferpool.Release(buf)
+
 	var w = NewWriter(buf)
 	if err := v.EncodeMsgpackExt(w); err != nil {
 		return errors.Wrapf(err, `msgpack: failed during call to EncodeMsgpackExt for %s`, reflect.TypeOf(v))
