@@ -36,35 +36,35 @@ func isEncodeMsgpacker(t reflect.Type) bool {
 var byteType = reflect.TypeOf(byte(0))
 
 func (e *Encoder) Encode(v interface{}) error {
-	switch v.(type) {
+	switch v := v.(type) {
 	case string:
-		return e.EncodeString(v.(string))
+		return e.EncodeString(v)
 	case bool:
-		return e.EncodeBool(v.(bool))
+		return e.EncodeBool(v)
 	case float32:
-		return e.EncodeFloat32(v.(float32))
+		return e.EncodeFloat32(v)
 	case float64:
-		return e.EncodeFloat64(v.(float64))
+		return e.EncodeFloat64(v)
 	case uint:
-		return e.EncodeUint64(uint64(v.(uint)))
+		return e.EncodeUint64(uint64(v))
 	case uint8:
-		return e.EncodeUint8(v.(uint8))
+		return e.EncodeUint8(v)
 	case uint16:
-		return e.EncodeUint16(v.(uint16))
+		return e.EncodeUint16(v)
 	case uint32:
-		return e.EncodeUint32(v.(uint32))
+		return e.EncodeUint32(v)
 	case uint64:
-		return e.EncodeUint64(v.(uint64))
+		return e.EncodeUint64(v)
 	case int:
-		return e.EncodeInt64(int64(v.(int)))
+		return e.EncodeInt64(int64(v))
 	case int8:
-		return e.EncodeInt8(v.(int8))
+		return e.EncodeInt8(v)
 	case int16:
-		return e.EncodeInt16(v.(int16))
+		return e.EncodeInt16(v)
 	case int32:
-		return e.EncodeInt32(v.(int32))
+		return e.EncodeInt32(v)
 	case int64:
-		return e.EncodeInt64(v.(int64))
+		return e.EncodeInt64(v)
 	}
 
 	// Find the first non-pointer, non-interface{}
@@ -282,7 +282,7 @@ func (e *Encoder) EncodeString(s string) error {
 		return errors.Errorf(`msgpack: string is too long (len=%d)`, l)
 	}
 
-	io.WriteString(e.w, s)
+	e.w.WriteString(s)
 	return nil
 }
 
