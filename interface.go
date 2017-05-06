@@ -169,6 +169,9 @@ type MapBuilder interface {
 }
 
 // Writer handles low-level writing to an io.Writer
+// Note that Writers are NEVER meant to be shared concurrently
+// between goroutines. You DO NOT write serialized data concurrently
+// to the same destination.
 type Writer interface {
 	io.Writer
 	WriteByte(byte) error

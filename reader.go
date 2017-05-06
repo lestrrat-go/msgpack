@@ -22,10 +22,8 @@ func (r *reader) Read(buf []byte) (int, error) {
 }
 
 func (r *reader) ReadByte() (byte, error) {
-	b := sbytepool.Get().([]byte)
-	defer sbytepool.Put(b)
-
-	n, err := r.src.Read(b)
+	var b [1]byte
+	n, err := r.src.Read(b[:])
 	if n != 1 {
 		return byte(0), errors.Wrap(err, `reader: failed to read byte`)
 	}
