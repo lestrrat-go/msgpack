@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"io"
 	"sync"
-
-	"github.com/pkg/errors"
 )
 
 type writer struct {
@@ -28,34 +26,31 @@ func allocsbyte() interface{} {
 	return make([]byte, 1)
 }
 
-func (w *writer) Write(buf []byte) (int, error)  {
+func (w writer) Write(buf []byte) (int, error) {
 	return w.dst.Write(buf)
 }
 
-func (w *writer) WriteByte(v byte) error {
-	buf := sbytepool.Get().([]byte)
-	defer sbytepool.Put(buf)
-
-	buf[0] = byte(v)
-	n, err := w.Write(buf)
-	if n != 1 {
-		return errors.Wrap(err, `writer: failed to write byte`)
-	}
-	return nil
+func (w writer) WriteString(s string) (int, error) {
+	return w.Write([]byte(s))
 }
 
-func (w *writer) WriteUint8(v uint8) error {
+func (w writer) WriteByte(v byte) error {
+	_, err := w.Write([]byte{v})
+	return err
+}
+
+func (w writer) WriteUint8(v uint8) error {
 	return w.WriteByte(byte(v))
 }
 
-func (w *writer) WriteUint16(v uint16) error {
+func (w writer) WriteUint16(v uint16) error {
 	return binary.Write(w.dst, binary.BigEndian, v)
 }
 
-func (w *writer) WriteUint32(v uint32) error {
+func (w writer) WriteUint32(v uint32) error {
 	return binary.Write(w.dst, binary.BigEndian, v)
 }
 
-func (w *writer) WriteUint64(v uint64) error {
+func (w writer) WriteUint64(v uint64) error {
 	return binary.Write(w.dst, binary.BigEndian, v)
 }

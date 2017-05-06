@@ -172,6 +172,7 @@ type MapBuilder interface {
 type Writer interface {
 	io.Writer
 	WriteByte(byte) error
+	WriteString(string) (int, error)
 	WriteUint8(uint8) error
 	WriteUint16(uint16) error
 	WriteUint32(uint32) error
