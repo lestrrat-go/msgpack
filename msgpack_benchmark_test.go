@@ -36,6 +36,20 @@ type Decoder interface {
 	Decode(interface{}) error
 }
 
+type Marshaler interface {
+	Marshal(interface{}) ([]byte, error)
+}
+
+type Unmarshaler interface {
+	Unmarshal([]byte, interface{}) error
+}
+
+type MarshalFunc func(interface{}) ([]byte, error)
+
+func (f MarshalFunc) Marshal(v interface{}) ([]byte, error) {
+	return f(v)
+}
+
 var strvar16 = randString(16)
 var strvar256 = randString(256)
 var strvar65536 = randString(65536)
@@ -45,7 +59,8 @@ func BenchmarkLestrrat(b *testing.B) {
 	e := lestrrat.NewEncoder(ioutil.Discard)
 	b.StartTimer()
 	b.ReportAllocs()
-	bench(b, e, func(in io.Reader) Decoder { return lestrrat.NewDecoder(in) })
+	benchEncodeDecode(b, e, func(in io.Reader) Decoder { return lestrrat.NewDecoder(in) })
+	benchMarshalUnmarshal(b, MarshalFunc(lestrrat.Marshal))
 }
 
 // Oh why, why did you need to declare your Decode with variadic
@@ -73,17 +88,33 @@ func BenchmarkVmihailenco(b *testing.B) {
 	e := VmihailencoEncoder{Encoder: vmihailenco.NewEncoder(ioutil.Discard)}
 	b.ReportAllocs()
 	b.StartTimer()
-	bench(b, e, func(in io.Reader) Decoder {
+	benchEncodeDecode(b, e, func(in io.Reader) Decoder {
 		return VmihailencoDecoder{Decoder: vmihailenco.NewDecoder(in)}
 	})
+	benchMarshalUnmarshal(b, MarshalFunc(func(v interface{}) ([]byte, error) {
+		return vmihailenco.Marshal(v)
+	}))
 }
 
-func bench(b *testing.B, e Encoder, newDecoder func(io.Reader) Decoder) {
+func benchMarshalUnmarshal(b *testing.B, m Marshaler) {
+	benchFloatMarshal(b, m)
+	benchIntMarshal(b, m)
+}
+
+func benchMarshal(b *testing.B, m Marshaler, v interface{}) {
+	for i := 0; i < b.N; i++ {
+		if _, err := m.Marshal(v); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func benchEncodeDecode(b *testing.B, e Encoder, newDecoder func(io.Reader) Decoder) {
 	benchNilEncode(b, e)
 	benchBool(b, e)
 	benchStrings(b, e)
-	benchFloats(b, e)
-	benchInts(b, e)
+	benchFloatEncode(b, e)
+	benchIntEncode(b, e)
 
 	benchNilDecode(b, newDecoder)
 }
@@ -114,68 +145,105 @@ func benchDecode(b *testing.B, makeDecoder func() Decoder) {
 }
 
 func benchNilEncode(b *testing.B, e Encoder) {
-	b.Run("serialize nil", func(b *testing.B) {
+	b.Run("encode nil", func(b *testing.B) {
 		benchEncode(b, e, nil)
 	})
 }
 
 func benchNilDecode(b *testing.B, newDecoder func(io.Reader) Decoder) {
-	b.Run("deserialize nil", func(b *testing.B) {
-		benchDecode(b, func () Decoder {
-			return newDecoder(bytes.NewBuffer([]byte{lestrrat.Nil.Byte()}))
+	data := []byte{lestrrat.Nil.Byte()}
+	b.Run("decode nil", func(b *testing.B) {
+		benchDecode(b, func() Decoder {
+			return newDecoder(bytes.NewBuffer(data))
 		})
 	})
 }
 
 func benchBool(b *testing.B, e Encoder) {
-	b.Run("serialize true", func(b *testing.B) {
+	b.Run("encode true", func(b *testing.B) {
 		benchEncode(b, e, true)
 	})
-	b.Run("serialize false", func(b *testing.B) {
+	b.Run("encode false", func(b *testing.B) {
 		benchEncode(b, e, false)
 	})
 }
 
 func benchStrings(b *testing.B, e Encoder) {
 	for _, v := range []string{strvar16, strvar256, strvar65536} {
-		b.Run(fmt.Sprintf("serialize string (len = %d)", len(v)), func(b *testing.B) {
+		b.Run(fmt.Sprintf("encode string (len=%d)", len(v)), func(b *testing.B) {
 			benchEncode(b, e, v)
 		})
 	}
 }
 
-func benchFloats(b *testing.B, e Encoder) {
-	b.Run("serialize float32", func(b *testing.B) {
+func benchFloatEncode(b *testing.B, e Encoder) {
+	b.Run("encode float32", func(b *testing.B) {
 		benchEncode(b, e, math.MaxFloat32)
 	})
-	b.Run("serialize float64", func(b *testing.B) {
+	b.Run("encode float64", func(b *testing.B) {
 		benchEncode(b, e, math.MaxFloat64)
 	})
 }
 
-func benchInts(b *testing.B, e Encoder) {
-	b.Run("serialize uint8", func(b *testing.B) {
+func benchFloatMarshal(b *testing.B, m Marshaler) {
+	b.Run("marshal float32", func(b *testing.B) {
+		benchMarshal(b, m, math.MaxFloat32)
+	})
+	b.Run("marshal float64", func(b *testing.B) {
+		benchMarshal(b, m, math.MaxFloat64)
+	})
+}
+
+func benchIntEncode(b *testing.B, e Encoder) {
+	b.Run("encode uint8", func(b *testing.B) {
 		benchEncode(b, e, math.MaxUint8)
 	})
-	b.Run("serialize uint16", func(b *testing.B) {
+	b.Run("encode uint16", func(b *testing.B) {
 		benchEncode(b, e, math.MaxUint16)
 	})
-	b.Run("serialize uint32", func(b *testing.B) {
+	b.Run("encode uint32", func(b *testing.B) {
 		benchEncode(b, e, math.MaxUint32)
 	})
-	b.Run("serialize uint64", func(b *testing.B) {
+	b.Run("encode uint64", func(b *testing.B) {
 		benchEncode(b, e, uint64(math.MaxUint64))
 	})
-	b.Run("serialize int8", func(b *testing.B) {
+	b.Run("encode int8", func(b *testing.B) {
 		benchEncode(b, e, math.MaxInt8)
 	})
-	b.Run("serialize int16", func(b *testing.B) {
+	b.Run("encode int16", func(b *testing.B) {
 		benchEncode(b, e, math.MaxInt16)
 	})
-	b.Run("serialize int32", func(b *testing.B) {
+	b.Run("encode int32", func(b *testing.B) {
 		benchEncode(b, e, math.MaxInt32)
 	})
-	b.Run("serialize int64", func(b *testing.B) {
+	b.Run("encode int64", func(b *testing.B) {
 		benchEncode(b, e, math.MaxInt64)
+	})
+}
+
+func benchIntMarshal(b *testing.B, e Marshaler) {
+	b.Run("marshal uint8", func(b *testing.B) {
+		benchMarshal(b, e, math.MaxUint8)
+	})
+	b.Run("marshal uint16", func(b *testing.B) {
+		benchMarshal(b, e, math.MaxUint16)
+	})
+	b.Run("marshal uint32", func(b *testing.B) {
+		benchMarshal(b, e, math.MaxUint32)
+	})
+	b.Run("marshal uint64", func(b *testing.B) {
+		benchMarshal(b, e, uint64(math.MaxUint64))
+	})
+	b.Run("marshal int8", func(b *testing.B) {
+		benchMarshal(b, e, math.MaxInt8)
+	})
+	b.Run("marshal int16", func(b *testing.B) {
+		benchMarshal(b, e, math.MaxInt16)
+	})
+	b.Run("marshal int32", func(b *testing.B) {
+		benchMarshal(b, e, math.MaxInt32)
+	})
+	b.Run("marshal int64", func(b *testing.B) {
+		benchMarshal(b, e, math.MaxInt64)
 	})
 }

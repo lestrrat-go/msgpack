@@ -17,8 +17,15 @@ import (
 // between goroutines. You DO NOT write serialized data concurrently
 // to the same destination.
 func NewEncoder(w io.Writer) *Encoder {
+	var dst Writer
+	if x, ok := w.(Writer); ok {
+		dst = x
+	} else {
+		dst = NewWriter(w)
+	}
+
 	return &Encoder{
-		w: NewWriter(w),
+		dst: dst,
 	}
 }
 
@@ -121,7 +128,7 @@ INDIRECT:
 }
 
 func (e *Encoder) EncodeNil() error {
-	return e.w.WriteByte(Nil.Byte())
+	return e.dst.WriteByte(Nil.Byte())
 }
 
 func (e *Encoder) EncodeBool(b bool) error {
@@ -131,113 +138,113 @@ func (e *Encoder) EncodeBool(b bool) error {
 	} else {
 		code = False
 	}
-	return e.w.WriteByte(code.Byte())
+	return e.dst.WriteByte(code.Byte())
 }
 
 func (e *Encoder) EncodeFloat32(f float32) error {
-	if err := e.w.WriteByte(Float.Byte()); err != nil {
+	if err := e.dst.WriteByte(Float.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Float code`)
 	}
-	if err := e.w.WriteUint32(math.Float32bits(f)); err != nil {
+	if err := e.dst.WriteUint32(math.Float32bits(f)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Float payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeFloat64(f float64) error {
-	if err := e.w.WriteByte(Double.Byte()); err != nil {
+	if err := e.dst.WriteByte(Double.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Double code`)
 	}
 
-	if err := e.w.WriteUint64(math.Float64bits(f)); err != nil {
+	if err := e.dst.WriteUint64(math.Float64bits(f)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Double payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeUint8(i uint8) error {
-	if err := e.w.WriteByte(Uint8.Byte()); err != nil {
+	if err := e.dst.WriteByte(Uint8.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Uint8 code`)
 	}
 
-	if err := e.w.WriteUint8(i); err != nil {
+	if err := e.dst.WriteUint8(i); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Uint8 payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeUint16(i uint16) error {
-	if err := e.w.WriteByte(Uint16.Byte()); err != nil {
+	if err := e.dst.WriteByte(Uint16.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Uint16 code`)
 	}
 
-	if err := e.w.WriteUint16(i); err != nil {
+	if err := e.dst.WriteUint16(i); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Uint16 payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeUint32(i uint32) error {
-	if err := e.w.WriteByte(Uint32.Byte()); err != nil {
+	if err := e.dst.WriteByte(Uint32.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Uint32 code`)
 	}
 
-	if err := e.w.WriteUint32(i); err != nil {
+	if err := e.dst.WriteUint32(i); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Uint32 payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeUint64(i uint64) error {
-	if err := e.w.WriteByte(Uint64.Byte()); err != nil {
+	if err := e.dst.WriteByte(Uint64.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Uint64 code`)
 	}
 
-	if err := e.w.WriteUint64(i); err != nil {
+	if err := e.dst.WriteUint64(i); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Uint64 payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeInt8(i int8) error {
-	if err := e.w.WriteByte(Int8.Byte()); err != nil {
+	if err := e.dst.WriteByte(Int8.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Int8 code`)
 	}
 
-	if err := e.w.WriteByte(byte(i)); err != nil {
+	if err := e.dst.WriteByte(byte(i)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Int8 payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeInt16(i int16) error {
-	if err := e.w.WriteByte(Int16.Byte()); err != nil {
+	if err := e.dst.WriteByte(Int16.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Int16 code`)
 	}
 
-	if err := e.w.WriteUint16(uint16(i)); err != nil {
+	if err := e.dst.WriteUint16(uint16(i)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Int16 payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeInt32(i int32) error {
-	if err := e.w.WriteByte(Int32.Byte()); err != nil {
+	if err := e.dst.WriteByte(Int32.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Int32 code`)
 	}
 
-	if err := e.w.WriteUint32(uint32(i)); err != nil {
+	if err := e.dst.WriteUint32(uint32(i)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Int32 payload`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeInt64(i int64) error {
-	if err := e.w.WriteByte(Int64.Byte()); err != nil {
+	if err := e.dst.WriteByte(Int64.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Int64 code`)
 	}
 
-	if err := e.w.WriteUint64(uint64(i)); err != nil {
+	if err := e.dst.WriteUint64(uint64(i)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write Int64 payload`)
 	}
 	return nil
@@ -265,7 +272,7 @@ func (e *Encoder) EncodeBytes(b []byte) error {
 	if err := e.writePreamble(code, w, l); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write []byte preamble`)
 	}
-	e.w.Write(b)
+	e.dst.Write(b)
 	return nil
 }
 
@@ -273,40 +280,40 @@ func (e *Encoder) EncodeString(s string) error {
 	l := len(s)
 	switch {
 	case l < 32:
-		e.w.WriteByte(FixStr0.Byte() | uint8(l))
+		e.dst.WriteByte(FixStr0.Byte() | uint8(l))
 	case l <= math.MaxUint8:
-		e.w.WriteByte(Str8.Byte())
-		e.w.WriteUint8(uint8(l))
+		e.dst.WriteByte(Str8.Byte())
+		e.dst.WriteUint8(uint8(l))
 	case l <= math.MaxUint16:
-		e.w.WriteByte(Str16.Byte())
-		e.w.WriteUint16(uint16(l))
+		e.dst.WriteByte(Str16.Byte())
+		e.dst.WriteUint16(uint16(l))
 	case l <= math.MaxUint32:
-		e.w.WriteByte(Str32.Byte())
-		e.w.WriteUint32(uint32(l))
+		e.dst.WriteByte(Str32.Byte())
+		e.dst.WriteUint32(uint32(l))
 	default:
 		return errors.Errorf(`msgpack: string is too long (len=%d)`, l)
 	}
 
-	e.w.WriteString(s)
+	e.dst.WriteString(s)
 	return nil
 }
 
 func (e *Encoder) writePreamble(code Code, w int, l int) error {
-	if err := e.w.WriteByte(code.Byte()); err != nil {
+	if err := e.dst.WriteByte(code.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write code`)
 	}
 
 	switch w {
 	case 1:
-		if err := e.w.WriteUint8(uint8(l)); err != nil {
+		if err := e.dst.WriteUint8(uint8(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write length`)
 		}
 	case 2:
-		if err := e.w.WriteUint16(uint16(l)); err != nil {
+		if err := e.dst.WriteUint16(uint16(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write length`)
 		}
 	case 4:
-		if err := e.w.WriteUint32(uint32(l)); err != nil {
+		if err := e.dst.WriteUint32(uint32(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write length`)
 		}
 	}
@@ -331,18 +338,18 @@ func (e *Encoder) EncodeArray(v []interface{}) error {
 
 	switch c := arrayb.Count(); {
 	case c < 16:
-		e.w.WriteByte(FixArray0.Byte() + byte(c))
+		e.dst.WriteByte(FixArray0.Byte() + byte(c))
 	case c < math.MaxUint16:
-		e.w.WriteByte(Array16.Byte())
-		e.w.WriteUint16(uint16(c))
+		e.dst.WriteByte(Array16.Byte())
+		e.dst.WriteUint16(uint16(c))
 	case c < math.MaxUint32:
-		e.w.WriteByte(Array32.Byte())
-		e.w.WriteUint32(uint32(c))
+		e.dst.WriteByte(Array32.Byte())
+		e.dst.WriteUint32(uint32(c))
 	default:
 		return errors.Errorf(`msgpack: array element count out of range (%d)`, c)
 	}
 
-	if _, err := buf.WriteTo(e.w); err != nil {
+	if _, err := buf.WriteTo(e.dst); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write array payload`)
 	}
 	return nil
@@ -365,7 +372,7 @@ func (e *Encoder) EncodeMap(v interface{}) error {
 		}
 	}
 
-	if _, err := mapb.WriteTo(e.w); err != nil {
+	if _, err := mapb.WriteTo(e.dst); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write map payload`)
 	}
 	return nil
@@ -418,7 +425,7 @@ func (e *Encoder) EncodeStruct(v interface{}) error {
 		}
 	}
 
-	if _, err := mapb.WriteTo(e.w); err != nil {
+	if _, err := mapb.WriteTo(e.dst); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write map payload`)
 	}
 	return nil
@@ -435,55 +442,55 @@ func (e *Encoder) EncodeExt(typ int, v EncodeMsgpackExter) error {
 
 	switch l := buf.Len(); {
 	case l == 1:
-		if err := e.w.WriteByte(FixExt1.Byte()); err != nil {
+		if err := e.dst.WriteByte(FixExt1.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext1 code`)
 		}
 	case l == 2:
-		if err := e.w.WriteByte(FixExt2.Byte()); err != nil {
+		if err := e.dst.WriteByte(FixExt2.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext2 code`)
 		}
 	case l == 4:
-		if err := e.w.WriteByte(FixExt4.Byte()); err != nil {
+		if err := e.dst.WriteByte(FixExt4.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext4 code`)
 		}
 	case l == 8:
-		if err := e.w.WriteByte(FixExt8.Byte()); err != nil {
+		if err := e.dst.WriteByte(FixExt8.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext8 code`)
 		}
 	case l == 16:
-		if err := e.w.WriteByte(FixExt16.Byte()); err != nil {
+		if err := e.dst.WriteByte(FixExt16.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext16 code`)
 		}
 	case l <= math.MaxUint8:
-		if err := e.w.WriteByte(Ext8.Byte()); err != nil {
+		if err := e.dst.WriteByte(Ext8.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext8 code`)
 		}
-		if err := e.w.WriteByte(byte(l)); err != nil {
+		if err := e.dst.WriteByte(byte(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext8 payload length`)
 		}
 	case l <= math.MaxUint16:
-		if err := e.w.WriteByte(Ext16.Byte()); err != nil {
+		if err := e.dst.WriteByte(Ext16.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext16 code`)
 		}
-		if err := e.w.WriteUint16(uint16(l)); err != nil {
+		if err := e.dst.WriteUint16(uint16(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext16 payload length`)
 		}
 	case l <= math.MaxUint32:
-		if err := e.w.WriteByte(Ext32.Byte()); err != nil {
+		if err := e.dst.WriteByte(Ext32.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext32 code`)
 		}
-		if err := e.w.WriteUint32(uint32(l)); err != nil {
+		if err := e.dst.WriteUint32(uint32(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext32 payload length`)
 		}
 	default:
 		return errors.Errorf(`msgpack: extension payload too large: %d bytes`, l)
 	}
 
-	if err := e.w.WriteByte(byte(typ)); err != nil {
+	if err := e.dst.WriteByte(byte(typ)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write typ code`)
 	}
 
-	if _, err := buf.WriteTo(e.w); err != nil {
+	if _, err := buf.WriteTo(e.dst); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write extention payload`)
 	}
 	return nil

@@ -201,7 +201,7 @@ type Reader interface {
 // Encoder writes serialized data to a destination pointed to by
 // an io.Writer
 type Encoder struct {
-	w Writer
+	dst Writer
 }
 
 // Encoder reads serialized data from a source pointed to by
