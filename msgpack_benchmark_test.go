@@ -3,15 +3,22 @@
 package msgpack_test
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"math/rand"
 	"testing"
 
 	lestrrat "github.com/lestrrat/go-msgpack"
+	"github.com/pkg/errors"
 	vmihailenco "gopkg.in/vmihailenco/msgpack.v2"
 )
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
 
 func randString(l int) string {
 	buf := make([]byte, l)
@@ -25,6 +32,10 @@ type Encoder interface {
 	Encode(interface{}) error
 }
 
+type Decoder interface {
+	Decode(interface{}) error
+}
+
 var strvar16 = randString(16)
 var strvar256 = randString(256)
 var strvar65536 = randString(65536)
@@ -34,7 +45,17 @@ func BenchmarkLestrrat(b *testing.B) {
 	e := lestrrat.NewEncoder(ioutil.Discard)
 	b.StartTimer()
 	b.ReportAllocs()
-	bench(b, e)
+	bench(b, e, func(in io.Reader) Decoder { return lestrrat.NewDecoder(in) })
+}
+
+// Oh why, why did you need to declare your Decode with variadic
+// input list?
+type VmihailencoDecoder struct {
+	*vmihailenco.Decoder
+}
+
+func (e VmihailencoDecoder) Decode(v interface{}) error {
+	return e.Decoder.Decode(v)
 }
 
 // Oh why, why did you need to declare your Encode with variadic
@@ -52,15 +73,19 @@ func BenchmarkVmihailenco(b *testing.B) {
 	e := VmihailencoEncoder{Encoder: vmihailenco.NewEncoder(ioutil.Discard)}
 	b.ReportAllocs()
 	b.StartTimer()
-	bench(b, e)
+	bench(b, e, func(in io.Reader) Decoder {
+		return VmihailencoDecoder{Decoder: vmihailenco.NewDecoder(in)}
+	})
 }
 
-func bench(b *testing.B, e Encoder) {
-	benchNil(b, e)
+func bench(b *testing.B, e Encoder, newDecoder func(io.Reader) Decoder) {
+	benchNilEncode(b, e)
 	benchBool(b, e)
 	benchStrings(b, e)
 	benchFloats(b, e)
 	benchInts(b, e)
+
+	benchNilDecode(b, newDecoder)
 }
 
 func benchEncode(b *testing.B, e Encoder, v interface{}) {
@@ -71,11 +96,37 @@ func benchEncode(b *testing.B, e Encoder, v interface{}) {
 	}
 }
 
-func benchNil(b *testing.B, e Encoder) {
+func benchDecode(b *testing.B, makeDecoder func() Decoder) {
+	var v interface{}
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		d := makeDecoder()
+		b.StartTimer()
+		if err := d.Decode(&v); err != nil {
+			if err, ok := err.(stackTracer); ok {
+				for _, f := range err.StackTrace() {
+					fmt.Printf("%v\n", f)
+				}
+			}
+			panic(err)
+		}
+	}
+}
+
+func benchNilEncode(b *testing.B, e Encoder) {
 	b.Run("serialize nil", func(b *testing.B) {
 		benchEncode(b, e, nil)
 	})
 }
+
+func benchNilDecode(b *testing.B, newDecoder func(io.Reader) Decoder) {
+	b.Run("deserialize nil", func(b *testing.B) {
+		benchDecode(b, func () Decoder {
+			return newDecoder(bytes.NewBuffer([]byte{lestrrat.Nil.Byte()}))
+		})
+	})
+}
+
 func benchBool(b *testing.B, e Encoder) {
 	b.Run("serialize true", func(b *testing.B) {
 		benchEncode(b, e, true)
