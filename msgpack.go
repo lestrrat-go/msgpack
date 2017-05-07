@@ -10,8 +10,8 @@ import (
 
 // Marshal takes a Go value and serializes it in msgpack format.
 func Marshal(v interface{}) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := NewEncoder(&buf).Encode(v); err != nil {
+	var buf = newAppendingWriter(9)
+	if err := NewEncoder(buf).Encode(v); err != nil {
 		return nil, errors.Wrap(err, `failed to marshal`)
 	}
 	return buf.Bytes(), nil
