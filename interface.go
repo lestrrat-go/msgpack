@@ -125,6 +125,9 @@ type EncodeMsgpacker interface {
 	EncodeMsgpack(*Encoder) error
 }
 
+// DecodeMsgpacker is an interface for those objects that provide
+// their own deserialization. The objects are responsible for handling
+// the code, payload length (if applicable), and payload (if applicable)
 type DecodeMsgpacker interface {
 	DecodeMsgpack(*Decoder) error
 }
@@ -168,7 +171,7 @@ type MapBuilder interface {
 	Reset()
 }
 
-// Writer handles low-level writing to an io.Writer
+// Writer handles low-level writing to an io.Writer.
 // Note that Writers are NEVER meant to be shared concurrently
 // between goroutines. You DO NOT write serialized data concurrently
 // to the same destination.
@@ -182,7 +185,10 @@ type Writer interface {
 	WriteUint64(uint64) error
 }
 
-// Reader handles low-level reading from an io.Reader
+// Reader handles low-level reading from an io.Reader.
+// Note that Readers are NEVER meant to be shared concurrently
+// between goroutines. You DO NOT read data concurrently
+// from the same serialized source.
 type Reader interface {
 	io.Reader
 	ReadByte() (byte, error)
@@ -192,11 +198,14 @@ type Reader interface {
 	ReadUint64() (uint64, error)
 }
 
+// Encoder writes serialized data to a destination pointed to by
+// an io.Writer
 type Encoder struct {
 	w Writer
 }
 
+// Encoder reads serialized data from a source pointed to by
+// an io.Reader
 type Decoder struct {
 	r *bufio.Reader
 }
-
