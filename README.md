@@ -160,41 +160,43 @@ person who likes to live on the bleeding edge, you probably want to use another 
 Current status
 
 ```
-go test -run=none -tags "bench" -bench=. -benchmem -v
-BenchmarkLestrrat/serialize_nil-4                         50000000          26.6 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_true-4                        50000000          25.0 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_false-4                      100000000          24.3 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_string_(len_=_16)-4           20000000          78.9 ns/op        16 B/op         1 allocs/op
-BenchmarkLestrrat/serialize_string_(len_=_256)-4          10000000           155 ns/op       256 B/op         1 allocs/op
-BenchmarkLestrrat/serialize_string_(len_=_65536)-4          100000         12591 ns/op     65536 B/op         1 allocs/op
-BenchmarkLestrrat/serialize_float32-4                     30000000          40.4 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_float64-4                     30000000          40.6 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_uint8-4                       30000000          38.5 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_uint16-4                      30000000          40.3 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_uint32-4                      30000000          41.3 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_uint64-4                      30000000          39.5 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_int8-4                        30000000          39.3 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_int16-4                       30000000          40.5 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_int32-4                       30000000          39.8 ns/op         0 B/op         0 allocs/op
-BenchmarkLestrrat/serialize_int64-4                       30000000          40.2 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_nil-4                      50000000          35.7 ns/op         1 B/op         1 allocs/op
-BenchmarkVmihailenco/serialize_true-4                     30000000          39.6 ns/op         1 B/op         1 allocs/op
-BenchmarkVmihailenco/serialize_false-4                    30000000          37.1 ns/op         1 B/op         1 allocs/op
-BenchmarkVmihailenco/serialize_string_(len_=_16)-4        20000000          91.5 ns/op        17 B/op         2 allocs/op
-BenchmarkVmihailenco/serialize_string_(len_=_256)-4       10000000           148 ns/op       256 B/op         1 allocs/op
-BenchmarkVmihailenco/serialize_string_(len_=_65536)-4       100000         12065 ns/op     65536 B/op         1 allocs/op
-BenchmarkVmihailenco/serialize_float32-4                  30000000          38.6 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_float64-4                  30000000          35.5 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_uint8-4                    30000000          34.1 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_uint16-4                   50000000          35.1 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_uint32-4                   30000000          34.8 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_uint64-4                   50000000          37.1 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_int8-4                     30000000          39.0 ns/op         1 B/op         1 allocs/op
-BenchmarkVmihailenco/serialize_int16-4                    50000000          36.5 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_int32-4                    50000000          35.9 ns/op         0 B/op         0 allocs/op
-BenchmarkVmihailenco/serialize_int64-4                    30000000          39.1 ns/op         0 B/op         0 allocs/op
+$ go test -run=none -tags "bench" -bench=. -benchmem -v
+BenchmarkLestrrat/serialize_nil-4                         50000000          29.5 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_true-4                        50000000          24.7 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_false-4                      100000000          25.1 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_string_(len_=_16)-4           20000000          76.0 ns/op        16 B/op         1 allocs/op
+BenchmarkLestrrat/serialize_string_(len_=_256)-4          10000000           144 ns/op       256 B/op         1 allocs/op
+BenchmarkLestrrat/serialize_string_(len_=_65536)-4          100000         13323 ns/op     65536 B/op         1 allocs/op
+BenchmarkLestrrat/serialize_float32-4                     30000000          40.7 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_float64-4                     30000000          40.2 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_uint8-4                       30000000          38.0 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_uint16-4                      50000000          38.6 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_uint32-4                      30000000          38.5 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_uint64-4                      30000000          37.3 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_int8-4                        30000000          41.5 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_int16-4                       30000000          39.3 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_int32-4                       30000000          38.7 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/serialize_int64-4                       30000000          39.3 ns/op         0 B/op         0 allocs/op
+BenchmarkLestrrat/deserialize_nil-4                        1000000          1061 ns/op        16 B/op         1 allocs/op
+BenchmarkVmihailenco/serialize_nil-4                      50000000          38.4 ns/op         1 B/op         1 allocs/op
+BenchmarkVmihailenco/serialize_true-4                     30000000          37.5 ns/op         1 B/op         1 allocs/op
+BenchmarkVmihailenco/serialize_false-4                    30000000          37.7 ns/op         1 B/op         1 allocs/op
+BenchmarkVmihailenco/serialize_string_(len_=_16)-4        20000000          94.6 ns/op        17 B/op         2 allocs/op
+BenchmarkVmihailenco/serialize_string_(len_=_256)-4       10000000           149 ns/op       256 B/op         1 allocs/op
+BenchmarkVmihailenco/serialize_string_(len_=_65536)-4       100000         12341 ns/op     65536 B/op         1 allocs/op
+BenchmarkVmihailenco/serialize_float32-4                  30000000          34.9 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/serialize_float64-4                  50000000          36.2 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/serialize_uint8-4                    50000000          33.2 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/serialize_uint16-4                   50000000          34.8 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/serialize_uint32-4                   30000000          37.5 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/serialize_uint64-4                   30000000          39.6 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/serialize_int8-4                     30000000          41.6 ns/op         1 B/op         1 allocs/op
+BenchmarkVmihailenco/serialize_int16-4                    30000000          34.5 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/serialize_int32-4                    30000000          35.8 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/serialize_int64-4                    50000000          37.8 ns/op         0 B/op         0 allocs/op
+BenchmarkVmihailenco/deserialize_nil-4                     2000000           759 ns/op         0 B/op         0 allocs/op
 PASS
-ok    github.com/lestrrat/go-msgpack  45.917s
+ok    github.com/lestrrat/go-msgpack  179.910s
 ```
 
 # ACKNOWLEDGEMENTS
