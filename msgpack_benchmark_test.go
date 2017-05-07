@@ -59,7 +59,14 @@ func BenchmarkLestrrat(b *testing.B) {
 	e := lestrrat.NewEncoder(ioutil.Discard)
 	b.StartTimer()
 	b.ReportAllocs()
-	benchEncodeDecode(b, e, func(in io.Reader) Decoder { return lestrrat.NewDecoder(in) })
+	var b1 EncodeDecodeBenchmarker
+	b1.B = b
+	b1.Encoder = e
+	b1.MakeDecoder = func(in io.Reader) Decoder {
+		return lestrrat.NewDecoder(in)
+	}
+	b1.Run()
+
 	benchMarshalUnmarshal(b, MarshalFunc(lestrrat.Marshal))
 }
 
@@ -83,14 +90,30 @@ func (e VmihailencoEncoder) Encode(v interface{}) error {
 	return e.Encoder.Encode(v)
 }
 
+type EncodeDecodeBenchmarker struct {
+	B               *testing.B
+	Encoder         Encoder
+	MakeDecoder     func(io.Reader) Decoder
+	SkipDecodeTrue  bool
+	SkipDecodeFalse bool
+}
+
 func BenchmarkVmihailenco(b *testing.B) {
 	b.StopTimer()
 	e := VmihailencoEncoder{Encoder: vmihailenco.NewEncoder(ioutil.Discard)}
 	b.ReportAllocs()
 	b.StartTimer()
-	benchEncodeDecode(b, e, func(in io.Reader) Decoder {
+
+	var b1 EncodeDecodeBenchmarker
+	b1.B = b
+	b1.Encoder = e
+	b1.MakeDecoder = func(in io.Reader) Decoder {
 		return VmihailencoDecoder{Decoder: vmihailenco.NewDecoder(in)}
-	})
+	}
+	b1.SkipDecodeTrue = true
+	b1.SkipDecodeFalse = true
+	b1.Run()
+
 	benchMarshalUnmarshal(b, MarshalFunc(func(v interface{}) ([]byte, error) {
 		return vmihailenco.Marshal(v)
 	}))
@@ -109,79 +132,103 @@ func benchMarshal(b *testing.B, m Marshaler, v interface{}) {
 	}
 }
 
-func benchEncodeDecode(b *testing.B, e Encoder, newDecoder func(io.Reader) Decoder) {
-	benchNilEncode(b, e)
-	benchBool(b, e)
-	benchStrings(b, e)
-	benchFloatEncode(b, e)
-	benchIntEncode(b, e)
+func (bench *EncodeDecodeBenchmarker) Run() {
+	bench.NilEncode()
+	bench.BoolEncode()
+	bench.StringEncode()
+	bench.FloatEncode()
+	bench.IntEncode()
 
-	benchNilDecode(b, newDecoder)
+	bench.NilDecode()
+	bench.BoolDecode()
 }
 
-func benchEncode(b *testing.B, e Encoder, v interface{}) {
+func (bench *EncodeDecodeBenchmarker) Encode(b *testing.B, v interface{}) {
 	for i := 0; i < b.N; i++ {
-		if err := e.Encode(v); err != nil {
+		if err := bench.Encoder.Encode(v); err != nil {
 			panic(err)
 		}
 	}
 }
 
-func benchDecode(b *testing.B, makeDecoder func() Decoder) {
+func handleErr(err error) {
+	if err, ok := err.(stackTracer); ok {
+		for _, f := range err.StackTrace() {
+			fmt.Printf("%v\n", f)
+		}
+	}
+	panic(err)
+}
+
+func (bench *EncodeDecodeBenchmarker) Decode(b *testing.B, in *bytes.Reader) {
+	b.StopTimer()
+	d := bench.MakeDecoder(in)
+	b.StartTimer()
+
 	var v interface{}
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		d := makeDecoder()
+		in.Seek(0, 0)
 		b.StartTimer()
 		if err := d.Decode(&v); err != nil {
-			if err, ok := err.(stackTracer); ok {
-				for _, f := range err.StackTrace() {
-					fmt.Printf("%v\n", f)
-				}
-			}
-			panic(err)
+			handleErr(err)
 		}
 	}
 }
 
-func benchNilEncode(b *testing.B, e Encoder) {
-	b.Run("encode nil", func(b *testing.B) {
-		benchEncode(b, e, nil)
+func (bench *EncodeDecodeBenchmarker) NilEncode() {
+	bench.B.Run("encode nil", func(b *testing.B) {
+		bench.Encode(b, nil)
 	})
 }
 
-func benchNilDecode(b *testing.B, newDecoder func(io.Reader) Decoder) {
+func (bench *EncodeDecodeBenchmarker) NilDecode() {
 	data := []byte{lestrrat.Nil.Byte()}
-	b.Run("decode nil", func(b *testing.B) {
-		benchDecode(b, func() Decoder {
-			return newDecoder(bytes.NewBuffer(data))
-		})
+	bench.B.Run("decode nil", func(b *testing.B) {
+		bench.Decode(b, bytes.NewReader(data))
 	})
 }
 
-func benchBool(b *testing.B, e Encoder) {
-	b.Run("encode true", func(b *testing.B) {
-		benchEncode(b, e, true)
+func (bench *EncodeDecodeBenchmarker) BoolEncode() {
+	bench.B.Run("encode true", func(b *testing.B) {
+		bench.Encode(b, true)
 	})
-	b.Run("encode false", func(b *testing.B) {
-		benchEncode(b, e, false)
+	bench.B.Run("encode false", func(b *testing.B) {
+		bench.Encode(b, false)
 	})
 }
 
-func benchStrings(b *testing.B, e Encoder) {
+func (bench *EncodeDecodeBenchmarker) BoolDecode() {
+	dataTrue := []byte{lestrrat.True.Byte()}
+	dataFalse := []byte{lestrrat.False.Byte()}
+	bench.B.Run("decode true", func(b *testing.B) {
+		if bench.SkipDecodeFalse {
+			b.Skip("Decode bool (true) skipped, as it panics")
+		}
+		bench.Decode(b, bytes.NewReader(dataTrue))
+	})
+	bench.B.Run("decode false", func(b *testing.B) {
+		if bench.SkipDecodeFalse {
+			b.Skip("Decode bool (false) skipped, as it panics")
+		}
+		bench.Decode(b, bytes.NewReader(dataFalse))
+	})
+}
+
+func (bench *EncodeDecodeBenchmarker) StringEncode() {
 	for _, v := range []string{strvar16, strvar256, strvar65536} {
-		b.Run(fmt.Sprintf("encode string (len=%d)", len(v)), func(b *testing.B) {
-			benchEncode(b, e, v)
+		bench.B.Run(fmt.Sprintf("encode string (len=%d)", len(v)), func(b *testing.B) {
+			bench.Encode(b, v)
 		})
 	}
 }
 
-func benchFloatEncode(b *testing.B, e Encoder) {
-	b.Run("encode float32", func(b *testing.B) {
-		benchEncode(b, e, math.MaxFloat32)
+func (bench *EncodeDecodeBenchmarker) FloatEncode() {
+	bench.B.Run("encode float32", func(b *testing.B) {
+		bench.Encode(b, math.MaxFloat32)
 	})
-	b.Run("encode float64", func(b *testing.B) {
-		benchEncode(b, e, math.MaxFloat64)
+	bench.B.Run("encode float64", func(b *testing.B) {
+		bench.Encode(b, math.MaxFloat64)
 	})
 }
 
@@ -194,30 +241,30 @@ func benchFloatMarshal(b *testing.B, m Marshaler) {
 	})
 }
 
-func benchIntEncode(b *testing.B, e Encoder) {
-	b.Run("encode uint8", func(b *testing.B) {
-		benchEncode(b, e, math.MaxUint8)
+func (bench *EncodeDecodeBenchmarker) IntEncode() {
+	bench.B.Run("encode uint8", func(b *testing.B) {
+		bench.Encode(b, math.MaxUint8)
 	})
-	b.Run("encode uint16", func(b *testing.B) {
-		benchEncode(b, e, math.MaxUint16)
+	bench.B.Run("encode uint16", func(b *testing.B) {
+		bench.Encode(b, math.MaxUint16)
 	})
-	b.Run("encode uint32", func(b *testing.B) {
-		benchEncode(b, e, math.MaxUint32)
+	bench.B.Run("encode uint32", func(b *testing.B) {
+		bench.Encode(b, math.MaxUint32)
 	})
-	b.Run("encode uint64", func(b *testing.B) {
-		benchEncode(b, e, uint64(math.MaxUint64))
+	bench.B.Run("encode uint64", func(b *testing.B) {
+		bench.Encode(b, uint64(math.MaxUint64))
 	})
-	b.Run("encode int8", func(b *testing.B) {
-		benchEncode(b, e, math.MaxInt8)
+	bench.B.Run("encode int8", func(b *testing.B) {
+		bench.Encode(b, math.MaxInt8)
 	})
-	b.Run("encode int16", func(b *testing.B) {
-		benchEncode(b, e, math.MaxInt16)
+	bench.B.Run("encode int16", func(b *testing.B) {
+		bench.Encode(b, math.MaxInt16)
 	})
-	b.Run("encode int32", func(b *testing.B) {
-		benchEncode(b, e, math.MaxInt32)
+	bench.B.Run("encode int32", func(b *testing.B) {
+		bench.Encode(b, math.MaxInt32)
 	})
-	b.Run("encode int64", func(b *testing.B) {
-		benchEncode(b, e, math.MaxInt64)
+	bench.B.Run("encode int64", func(b *testing.B) {
+		bench.Encode(b, math.MaxInt64)
 	})
 }
 
