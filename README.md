@@ -149,6 +149,28 @@ should: So I wrote one for my own amusement and education.
 
 As most late comers are, I believe the project is a little bit cleaner than my predecessors, which **possibly** could mean a slightly easier experience for the users to hack and tweak it. I know, it's very subjective.
 
+As far as comparisons against `gopkg.in/vmihailenco/msgpack.v2` goes, this library tries to keep the API as compatible as possible to the standard library's `encoding/*` packages. For example, `encoding/json` allows:
+
+```go
+  b, _ := json.Marshal(true)
+
+  // using uninitialized empty interface
+  var v interface{}
+  json.Unmarshal(b, &v)
+```
+
+But if you do the same with `gopkg.in/vmihailenco/msgpack.v2`, this throws a panic:
+
+```go
+  b, _ := msgpack.Marshal(true)
+
+  // using uninitialized empty interface
+  var v interface{}
+  msgpack.Unmarshal(b, &v)
+```
+
+This library follows the semantics for `encoding/json`, and you can safely pass an uninitialized empty inteface to Unmarsha/Decode
+
 ## CONS
 
 As previously described, I have been learning by implementing this library.
