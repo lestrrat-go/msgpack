@@ -1,7 +1,6 @@
 package msgpack
 
 import (
-	"encoding/binary"
 	"io"
 
 	"github.com/pkg/errors"
@@ -9,11 +8,17 @@ import (
 
 type reader struct {
 	src io.Reader
+	// Note: accessing buf concurrently is a mistake. But you DO NOT
+	// write to a writer concurrently, or otherwise you can't guarantee
+	// the correct memory layout. We assume that the caller doesn't do
+	// anything silly.
+	buf []byte
 }
 
 func NewReader(r io.Reader) Reader {
 	return &reader{
 		src: r,
+		buf: make([]byte, 9),
 	}
 }
 
@@ -22,8 +27,8 @@ func (r *reader) Read(buf []byte) (int, error) {
 }
 
 func (r *reader) ReadByte() (byte, error) {
-	var b [1]byte
-	n, err := r.src.Read(b[:])
+	b := r.buf[:1]
+	n, err := r.src.Read(b)
 	if n != 1 {
 		return byte(0), errors.Wrap(err, `reader: failed to read byte`)
 	}
@@ -39,25 +44,26 @@ func (r *reader) ReadUint8() (uint8, error) {
 }
 
 func (r *reader) ReadUint16() (uint16, error) {
-	var v uint16
-	if err := binary.Read(r.src, binary.BigEndian, &v); err != nil {
+	b := r.buf[:2]
+	if _, err := r.src.Read(b); err != nil {
 		return uint16(0), errors.Wrap(err, `reader: failed to read uint16`)
 	}
-	return v, nil
+	return uint16(b[1]) | uint16(b[0])<<8, nil
 }
 
 func (r *reader) ReadUint32() (uint32, error) {
-	var v uint32
-	if err := binary.Read(r.src, binary.BigEndian, &v); err != nil {
+	b := r.buf[:4]
+	if _, err := r.src.Read(b); err != nil {
 		return uint32(0), errors.Wrap(err, `reader: failed to read uint32`)
 	}
-	return v, nil
+	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24, nil
 }
 
 func (r *reader) ReadUint64() (uint64, error) {
-	var v uint64
-	if err := binary.Read(r.src, binary.BigEndian, &v); err != nil {
+	b := r.buf[:8]
+	if _, err := r.src.Read(b); err != nil {
 		return uint64(0), errors.Wrap(err, `reader: failed to read uint64`)
 	}
-	return v, nil
+	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56, nil
 }

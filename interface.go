@@ -200,6 +200,3 @@ type Decoder struct {
 	r *bufio.Reader
 }
 
-type valueDecoder interface {
-	Decode(io.Reader) (reflect.Value, error)
-}
