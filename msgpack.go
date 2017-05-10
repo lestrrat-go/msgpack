@@ -1,4 +1,5 @@
 //go:generate stringer -type Code
+//go:generate go run internal/cmd/genmap/genmap.go - encoder_map_gen.go
 
 package msgpack
 

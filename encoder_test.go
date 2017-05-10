@@ -712,8 +712,8 @@ func TestEncodeStruct(t *testing.T) {
 	v.Bar.BarContent = "Hello, World!"
 
 	mapb := msgpack.NewMapBuilder()
-	mapb.Encode("Foo", 100)
-	mapb.Encode("bar", v.Bar)
+	mapb.Add("Foo", 100)
+	mapb.Add("bar", v.Bar)
 	e, err := mapb.Bytes()
 	if !assert.NoError(t, err, "MapBuilder.Bytes() should succeed") {
 		return

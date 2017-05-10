@@ -46,7 +46,6 @@ func decodeTest(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
 
 func decodeTestConcrete(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
 	typ := reflect.TypeOf(e)
-fmt.Printf("decodeTestConcrete typ = %s\n", typ)
 	t.Run(fmt.Sprintf("decode %s via Unmarshal (concrete)", code), func(t *testing.T) {
 		v := reflect.New(typ).Elem().Interface()
 		unmarshalMatch(t, b, &v, e)
@@ -92,7 +91,6 @@ func decodeTestMethod(t *testing.T, code msgpack.Code, method string, b []byte, 
 		}
 	})
 }
-
 
 func TestDecodeNil(t *testing.T) {
 	var e interface{}
