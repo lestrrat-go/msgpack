@@ -285,10 +285,10 @@ func (d *mapDecoder) Decode(r io.Reader) (interface{}, error) {
 	var value interface{}
 	for i := 0; i < size; i++ {
 		if err := dec.Decode(&key); err != nil {
-			return nil, errors.Wrapf(err, `msgpack: failed to decode fixmap key at index %d`, i)
+			return nil, errors.Wrapf(err, `msgpack: failed to decode fixmap key (%d/%d)`, i+1, size+1)
 		}
 		if err := dec.Decode(&value); err != nil {
-			return nil, errors.Wrapf(err, `msgpack: failed to decode fixmap value for key %s`, key)
+			return nil, errors.Wrapf(err, `msgpack: failed to decode fixmap value for key %s (%d/%d)`, key, i+1, size+1)
 		}
 
 		m[key] = value

@@ -9,44 +9,33 @@ import (
 )
 
 type mapBuilder struct {
-	buffer  *bytes.Buffer
-	count   int
-	encoder *Encoder
+	buffer []interface{}
 }
 
 func NewMapBuilder() MapBuilder {
-	dst := &bytes.Buffer{}
-	return &mapBuilder{
-		buffer:  dst,
-		encoder: NewEncoder(dst),
-	}
+	return &mapBuilder{}
 }
 
 func (b *mapBuilder) Reset() {
-	b.buffer.Reset()
-	b.count = 0
+	b.buffer = b.buffer[:0]
 }
 
-func (b *mapBuilder) Encode(key string, value interface{}) error {
-	if err := b.encoder.Encode(key); err != nil {
-		return errors.Wrapf(err, `map builder: failed to encode map key %s`, key)
-	}
-	if err := b.encoder.Encode(value); err != nil {
-		return errors.Wrapf(err, `map builder: failed to encode map element for %s`, key)
-	}
-
-	b.count++
-	return nil
+func (b *mapBuilder) Add(key string, value interface{}) {
+	b.buffer = append(b.buffer, key, value)
 }
 
 func (b *mapBuilder) Count() int {
-	return b.count
+	return len(b.buffer) / 2
 }
 
-func (b *mapBuilder) WriteTo(dst io.Writer) (int64, error) {
-	w := NewWriter(dst)
-
-	switch c := b.Count(); {
+func WriteMapHeader(dst io.Writer, c int) error {
+	var w Writer
+	var ok bool
+	if w, ok = dst.(Writer); !ok {
+		w = NewWriter(dst)
+	}
+	
+	switch {
 	case c < 16:
 		w.WriteByte(FixMap0.Byte() + byte(c))
 	case c < math.MaxUint16:
@@ -56,15 +45,29 @@ func (b *mapBuilder) WriteTo(dst io.Writer) (int64, error) {
 		w.WriteByte(Map32.Byte())
 		w.WriteUint32(uint32(c))
 	default:
-		return 0, errors.Errorf(`map builder: map element count out of range (%d)`, c)
+		return errors.Errorf(`map builder: map element count out of range (%d)`, c)
 	}
+	return nil
+}
 
-	return b.buffer.WriteTo(w)
+func (b *mapBuilder) Encode(dst io.Writer) error {
+	WriteMapHeader(dst, b.Count())
+
+	e := NewEncoder(dst)
+	for i := 0; i < b.Count(); i += 2 {
+		if err := e.Encode(b.buffer[i]); err != nil {
+			return errors.Wrapf(err, `map builder: failed to encode map key %s`, b.buffer[i])
+		}
+		if err := e.Encode(b.buffer[i+1]); err != nil {
+			return errors.Wrapf(err, `map builder: failed to encode map element for %s`, b.buffer[i])
+		}
+	}
+	return nil
 }
 
 func (b *mapBuilder) Bytes() ([]byte, error) {
 	var buf bytes.Buffer
-	if _, err := b.WriteTo(&buf); err != nil {
+	if err := b.Encode(&buf); err != nil {
 		return nil, errors.Wrap(err, `map builder: failed to write map`)
 	}
 

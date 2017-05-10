@@ -321,35 +321,17 @@ func (e *Encoder) writePreamble(code Code, w int, l int) error {
 }
 
 func (e *Encoder) EncodeArray(v []interface{}) error {
-	buf := bufferpool.Get()
-	defer bufferpool.Release(buf)
-
 	// XXX: We could just as easily implement this without using
 	// ArrayBuilder, but I think I'll leave this as it is for now
 	// because this code path automatically tests it for us.
 	// In reality, we only need to use an ArrayBuilder in case
 	// we do not know the number of elements before hand.
-	arrayb := NewArrayBuilder(buf)
-	for i, x := range v {
-		if err := arrayb.Encode(x); err != nil {
-			return errors.Wrapf(err, `msgpack: failed to encode array element %d`, i)
-		}
+	arrayb := NewArrayBuilder()
+	for _, x := range v {
+		arrayb.Add(x)
 	}
 
-	switch c := arrayb.Count(); {
-	case c < 16:
-		e.dst.WriteByte(FixArray0.Byte() + byte(c))
-	case c < math.MaxUint16:
-		e.dst.WriteByte(Array16.Byte())
-		e.dst.WriteUint16(uint16(c))
-	case c < math.MaxUint32:
-		e.dst.WriteByte(Array32.Byte())
-		e.dst.WriteUint32(uint32(c))
-	default:
-		return errors.Errorf(`msgpack: array element count out of range (%d)`, c)
-	}
-
-	if _, err := buf.WriteTo(e.dst); err != nil {
+	if err := arrayb.Encode(e.dst); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write array payload`)
 	}
 	return nil
@@ -364,16 +346,51 @@ func (e *Encoder) EncodeMap(v interface{}) error {
 		return errors.Errorf(`msgpack: keys to maps must be strings (not %s)`, rv.Type().Key())
 	}
 
-	mapb := NewMapBuilder()
-	for _, key := range rv.MapKeys() {
-		value := rv.MapIndex(key)
-		if err := mapb.Encode(key.Interface().(string), value.Interface()); err != nil {
-			return errors.Wrap(err, `msgpack: failed to encode map element`)
-		}
-	}
+	// XXX We do NOT use MapBuilder's convenience methods except for the
+	// WriteHeader bit, purely for performance reasons.
+	keys := rv.MapKeys()
+	WriteMapHeader(e.dst, len(keys))
 
-	if _, err := mapb.WriteTo(e.dst); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write map payload`)
+	// These are silly fast paths for common cases
+	switch rv.Type().Elem().Kind() {
+	case reflect.String:
+		return e.encodeMapString(v)
+	case reflect.Bool:
+		return e.encodeMapBool(v)
+	case reflect.Uint:
+		return e.encodeMapUint(v)
+	case reflect.Uint8:
+		return e.encodeMapUint8(v)
+	case reflect.Uint16:
+		return e.encodeMapUint16(v)
+	case reflect.Uint32:
+		return e.encodeMapUint32(v)
+	case reflect.Uint64:
+		return e.encodeMapUint64(v)
+	case reflect.Int:
+		return e.encodeMapInt(v)
+	case reflect.Int8:
+		return e.encodeMapInt8(v)
+	case reflect.Int16:
+		return e.encodeMapInt16(v)
+	case reflect.Int32:
+		return e.encodeMapInt32(v)
+	case reflect.Int64:
+		return e.encodeMapInt64(v)
+	case reflect.Float32:
+		return e.encodeMapFloat32(v)
+	case reflect.Float64:
+		return e.encodeMapFloat64(v)
+	default:
+		for _, key := range keys {
+			if err := e.EncodeString(key.Interface().(string)); err != nil {
+				return errors.Wrap(err, `failed to encode map key`)
+			}
+
+			if err := e.Encode(rv.MapIndex(key).Interface()); err != nil {
+				return errors.Wrap(err, `failed to encode map value`)
+			}
+		}
 	}
 	return nil
 }
@@ -420,12 +437,10 @@ func (e *Encoder) EncodeStruct(v interface{}) error {
 			}
 		}
 
-		if err := mapb.Encode(name, field.Interface()); err != nil {
-			return errors.Wrap(err, `msgpack: failed to encode struct field`)
-		}
+		mapb.Add(name, field.Interface())
 	}
 
-	if _, err := mapb.WriteTo(e.dst); err != nil {
+	if err := mapb.Encode(e.dst); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write map payload`)
 	}
 	return nil

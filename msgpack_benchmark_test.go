@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/rand"
+	"reflect"
 	"testing"
 
 	lestrrat "github.com/lestrrat/go-msgpack"
@@ -138,6 +139,7 @@ func (bench *EncodeDecodeBenchmarker) Run() {
 	bench.StringEncode()
 	bench.FloatEncode()
 	bench.IntEncode()
+	bench.MapEncode()
 
 	bench.NilDecode()
 	bench.BoolDecode()
@@ -268,7 +270,39 @@ func (bench *EncodeDecodeBenchmarker) IntEncode() {
 	})
 }
 
+func (bench *EncodeDecodeBenchmarker) MapEncode() {
+	types := []reflect.Type{
+		reflect.TypeOf(true),
+		reflect.TypeOf(int(0)),
+		reflect.TypeOf(int8(0)),
+		reflect.TypeOf(int16(0)),
+		reflect.TypeOf(int32(0)),
+		reflect.TypeOf(int64(0)),
+		reflect.TypeOf(uint(0)),
+		reflect.TypeOf(uint8(0)),
+		reflect.TypeOf(uint16(0)),
+		reflect.TypeOf(uint32(0)),
+		reflect.TypeOf(uint64(0)),
+		reflect.TypeOf(float32(0)),
+		reflect.TypeOf(float64(0)),
+		reflect.TypeOf(""),
+	}
+
+	stype := reflect.TypeOf("")
+	for _, typ := range types {
+		mtype := reflect.MapOf(stype, typ)
+		mv := reflect.MakeMap(mtype)
+		for i := 0; i < 32; i++ {
+			mv.SetMapIndex(reflect.ValueOf(fmt.Sprintf("%d", i)), reflect.New(typ).Elem())
+		}
+		bench.B.Run(fmt.Sprintf("encode map[string]%s", typ), func(b *testing.B) {
+			bench.Encode(b, mv.Interface())
+		})
+	}
+}
+
 func benchIntMarshal(b *testing.B, e Marshaler) {
+
 	b.Run("marshal uint8", func(b *testing.B) {
 		benchMarshal(b, e, math.MaxUint8)
 	})

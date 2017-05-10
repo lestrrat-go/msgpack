@@ -157,17 +157,18 @@ type DecodeMsgpackExter interface {
 
 // ArrayBuilder is used to build a msgpack array
 type ArrayBuilder interface {
+	Add(interface{})
 	Count() int
-	Encode(interface{}) error
+	Encode(io.Writer) error
+	Reset()
 }
 
 // MapBuilder is used to build a msgpack map
 type MapBuilder interface {
-	io.WriterTo
-
+	Add(string, interface{})
 	Bytes() ([]byte, error)
 	Count() int
-	Encode(string, interface{}) error
+	Encode(io.Writer) error
 	Reset()
 }
 
