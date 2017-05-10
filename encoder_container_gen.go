@@ -171,3 +171,129 @@ func (e *Encoder) encodeMapString(in interface{}) error {
 	}
 	return nil
 }
+
+func (e *Encoder) encodeArrayBool(in interface{}) error {
+	for k, v := range in.([]bool) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayInt(in interface{}) error {
+	for k, v := range in.([]int) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayInt8(in interface{}) error {
+	for k, v := range in.([]int8) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayInt16(in interface{}) error {
+	for k, v := range in.([]int16) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayInt32(in interface{}) error {
+	for k, v := range in.([]int32) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayInt64(in interface{}) error {
+	for k, v := range in.([]int64) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayUint(in interface{}) error {
+	for k, v := range in.([]uint) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayUint8(in interface{}) error {
+	for k, v := range in.([]uint8) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayUint16(in interface{}) error {
+	for k, v := range in.([]uint16) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayUint32(in interface{}) error {
+	for k, v := range in.([]uint32) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayUint64(in interface{}) error {
+	for k, v := range in.([]uint64) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayFloat32(in interface{}) error {
+	for k, v := range in.([]float32) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayFloat64(in interface{}) error {
+	for k, v := range in.([]float64) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArrayString(in interface{}) error {
+	for k, v := range in.([]string) {
+		if err := e.Encode(v); err != nil {
+			return errors.Wrapf(err, `failed to encode value for %s`, k)
+		}
+	}
+	return nil
+}

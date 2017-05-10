@@ -140,6 +140,7 @@ func (bench *EncodeDecodeBenchmarker) Run() {
 	bench.FloatEncode()
 	bench.IntEncode()
 	bench.MapEncode()
+	bench.ArrayEncode()
 
 	bench.NilDecode()
 	bench.BoolDecode()
@@ -297,6 +298,36 @@ func (bench *EncodeDecodeBenchmarker) MapEncode() {
 		}
 		bench.B.Run(fmt.Sprintf("encode map[string]%s", typ), func(b *testing.B) {
 			bench.Encode(b, mv.Interface())
+		})
+	}
+}
+
+func (bench *EncodeDecodeBenchmarker) ArrayEncode() {
+	types := []reflect.Type{
+		reflect.TypeOf(true),
+		reflect.TypeOf(int(0)),
+		reflect.TypeOf(int8(0)),
+		reflect.TypeOf(int16(0)),
+		reflect.TypeOf(int32(0)),
+		reflect.TypeOf(int64(0)),
+		reflect.TypeOf(uint(0)),
+		reflect.TypeOf(uint8(0)),
+		reflect.TypeOf(uint16(0)),
+		reflect.TypeOf(uint32(0)),
+		reflect.TypeOf(uint64(0)),
+		reflect.TypeOf(float32(0)),
+		reflect.TypeOf(float64(0)),
+		reflect.TypeOf(""),
+	}
+
+	for _, typ := range types {
+		stype := reflect.SliceOf(typ)
+		sv := reflect.MakeSlice(stype, 32, 32)
+		for i := 0; i < 32; i++ {
+			sv.Index(i).Set(reflect.New(typ).Elem())
+		}
+		bench.B.Run(fmt.Sprintf("encode []%s", typ), func(b *testing.B) {
+			bench.Encode(b, sv.Interface())
 		})
 	}
 }
