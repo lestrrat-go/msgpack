@@ -40,20 +40,28 @@ func decodeMatch(t *testing.T, src io.Reader, v interface{}, expected interface{
 }
 
 func decodeTest(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
+	decodeTestConcrete(t, code, b, e)
+	decodeTestInterface(t, code, b, e)
+}
+
+func decodeTestConcrete(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
 	typ := reflect.TypeOf(e)
+fmt.Printf("decodeTestConcrete typ = %s\n", typ)
 	t.Run(fmt.Sprintf("decode %s via Unmarshal (concrete)", code), func(t *testing.T) {
 		v := reflect.New(typ).Elem().Interface()
-		unmarshalMatch(t, b, &v, e)
-	})
-
-	t.Run(fmt.Sprintf("decode %s via Unmarshal (interface{})", code), func(t *testing.T) {
-		var v interface{}
 		unmarshalMatch(t, b, &v, e)
 	})
 
 	t.Run(fmt.Sprintf("decode %s via Decoder (concrete)", code), func(t *testing.T) {
 		v := reflect.New(typ).Elem().Interface()
 		decodeMatch(t, bytes.NewBuffer(b), &v, e)
+	})
+}
+
+func decodeTestInterface(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
+	t.Run(fmt.Sprintf("decode %s via Unmarshal (interface{})", code), func(t *testing.T) {
+		var v interface{}
+		unmarshalMatch(t, b, &v, e)
 	})
 
 	t.Run(fmt.Sprintf("decode %s via Decoder (interface{})", code), func(t *testing.T) {
@@ -281,14 +289,5 @@ func TestDecodeStruct(t *testing.T) {
 	}
 	e.Bar.BarContent = "Hello, World!"
 
-	t.Run("decode via Unmarshal", func(t *testing.T) {
-		var v testStruct
-		if !assert.NoError(t, msgpack.Unmarshal(b, &v), "Unmarshal should succeed") {
-			return
-		}
-
-		if !assert.Equal(t, e, v, "value should be %s", e) {
-			return
-		}
-	})
+	decodeTestConcrete(t, msgpack.FixMap2, b, e)
 }

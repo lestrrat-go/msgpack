@@ -2,6 +2,7 @@ package msgpack
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"math"
 	"reflect"
@@ -685,9 +686,21 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 	// Special case: If the object is a Map type, and the target object
 	// is a Struct, we do the struct decoding bit.
 	if IsMapFamily(code) {
+		// could be &struct, interface{}(&struct{}), or interface{}(&interface{}(struct{}))
 		rv := reflect.ValueOf(v)
-		if rv.Type().Elem().Kind() == reflect.Struct {
-			dec = &structDecoder{code: code, target: rv.Type().Elem()}
+		if rv.Type().Kind() == reflect.Interface {
+			fmt.Println("is interface")
+			rv = rv.Elem()
+		}
+
+		if rv.Kind() == reflect.Ptr {
+			rv = rv.Elem()
+			if rv.Kind() == reflect.Interface {
+				rv = rv.Elem()
+			}
+			if rv.Kind() == reflect.Struct {
+				dec = &structDecoder{code: code, target: rv.Type()}
+			}
 		}
 	}
 
