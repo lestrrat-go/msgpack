@@ -79,7 +79,8 @@ func (w *appendingWriter) Write(buf []byte) (int, error) {
 }
 
 func (w *appendingWriter) WriteString(s string) (int, error) {
-	return w.Write([]byte(s))
+	w.buf = append(w.buf, s...)
+	return len(s), nil
 }
 
 func (w *appendingWriter) WriteByte(v byte) error {

@@ -112,12 +112,7 @@ INDIRECT:
 		if rv.Type().Elem() == byteType {
 			return e.EncodeBytes(v.([]byte))
 		}
-		// XXX Is there a better way to do this...?
-		var l = make([]interface{}, rv.Len())
-		for i := 0; i < rv.Len(); i++ {
-			l[i] = rv.Index(i).Interface()
-		}
-		return e.EncodeArray(l)
+		return e.EncodeArray(v)
 	case reflect.Map:
 		return e.EncodeMap(v)
 	case reflect.Struct:
@@ -320,19 +315,60 @@ func (e *Encoder) writePreamble(code Code, w int, l int) error {
 	return nil
 }
 
-func (e *Encoder) EncodeArray(v []interface{}) error {
-	// XXX: We could just as easily implement this without using
-	// ArrayBuilder, but I think I'll leave this as it is for now
-	// because this code path automatically tests it for us.
-	// In reality, we only need to use an ArrayBuilder in case
-	// we do not know the number of elements before hand.
-	arrayb := NewArrayBuilder()
-	for _, x := range v {
-		arrayb.Add(x)
+func (e *Encoder) EncodeArrayHeader(l int) error {
+	if err := WriteArrayHeader(e.dst, l); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write array header`)
+	}
+	return nil
+}
+
+func (e *Encoder) EncodeArray(v interface{}) error {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+	default:
+		return errors.Errorf(`msgpack: argument must be an array or a slice`)
 	}
 
-	if err := arrayb.Encode(e.dst); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write array payload`)
+	if err := e.EncodeArrayHeader(rv.Len()); err != nil {
+		return err
+	}
+
+	switch rv.Type().Elem().Kind() {
+	case reflect.String:
+		return e.encodeArrayString(v)
+	case reflect.Bool:
+		return e.encodeArrayBool(v)
+	case reflect.Int:
+		return e.encodeArrayInt(v)
+	case reflect.Int8:
+		return e.encodeArrayInt8(v)
+	case reflect.Int16:
+		return e.encodeArrayInt16(v)
+	case reflect.Int32:
+		return e.encodeArrayInt32(v)
+	case reflect.Int64:
+		return e.encodeArrayInt64(v)
+	case reflect.Uint:
+		return e.encodeArrayUint(v)
+	case reflect.Uint8:
+		return e.encodeArrayUint8(v)
+	case reflect.Uint16:
+		return e.encodeArrayUint16(v)
+	case reflect.Uint32:
+		return e.encodeArrayUint32(v)
+	case reflect.Uint64:
+		return e.encodeArrayUint64(v)
+	case reflect.Float32:
+		return e.encodeArrayFloat32(v)
+	case reflect.Float64:
+		return e.encodeArrayFloat64(v)
+	}
+
+	for i := 0; i < rv.Len(); i++ {
+		if err := e.Encode(rv.Index(i).Interface()); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write array payload`)
+		}
 	}
 	return nil
 }

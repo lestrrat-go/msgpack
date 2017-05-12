@@ -13,6 +13,8 @@ type Code byte
 const (
 	InvalidCode     Code = 0
 	FixedStrMask    Code = 0x1f
+	FixNum0         Code = 0x00
+	FixNum1         Code = 0x01
 	PosFixedNumHigh Code = 0x7f
 	FixMap0         Code = 0x80
 	FixMap1         Code = 0x81
@@ -208,5 +210,6 @@ type Encoder struct {
 // Encoder reads serialized data from a source pointed to by
 // an io.Reader
 type Decoder struct {
-	r *bufio.Reader
+	raw *bufio.Reader
+	src Reader
 }
