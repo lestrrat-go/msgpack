@@ -85,32 +85,59 @@ type FluentdMessage struct {
 }
 
 func (m FluentdMessage) EncodeMsgpack(e *msgpack.Encoder) error {
-  return e.EncodeArray([]interface{}{
-    m.Tag,
-    m.Time,
-    m.Record,
-    m.Option,
-  })
+  if err := e.EncodeArrayHeader(4); err != nil {
+    return errors.Wrap(err, `failed to encode array header`)
+  }
+  if err := e.EncodeString(m.Tag); err != nil {
+    return errors.Wrap(err, `failed to encode tag`)
+  }
+  if err := e.Encode(m.Time); err != nil {
+    return errors.Wrap(err, `failed to encode time`)
+  }
+  if err := e.Encode(m.Record); err != nil {
+    return errors.Wrap(err, `failed to encode record`)
+  }
+  if err := e.Encode(m.Option); err != nil {
+    return errors.Wrap(err, `failed to encode option`)
+  }
+  return nil
 }
 
 func (m *FluentdMessage) DecodeMsgpack(e *msgpack.Decoder) error {
-  l, err := e.DecodeArray()
-  if err != nil {
-    return errors.Wrap(err, `failed to decode msgpack array`)
+  var l int
+  if err := e.DecodeArrayLength(&l); err != nil {
+    return errors.Wrap(err, `failed to decode msgpack array length`)
   }
-  m.Tag = l[0].(string)
-  m.Time = *(l[1].(*EventTime))
-  m.Record = l[2].(map[string]interface{})
-  m.Option = l[3]
+
+  if l != 4 {
+    return errors.Errorf(`invalid array length %d (expected 4)`, l)
+  }
+
+  if err := e.DecodeString(&m.Tag); err != nil {
+    return errors.Wrap(err, `failed to decode fluentd message tag`)
+  }
+
+  if err := e.Decode(&m.Time); err != nil {
+    return errors.Wrap(err, `failed to decode fluentd time`)
+  }
+
+  if err := e.Decode(&m.Record); err != nil {
+    return errors.Wrap(err, `failed to decode fluentd record`)
+  }
+
+  if err := e.Decode(&m.Option); err != nil {
+    return errors.Wrap(err, `failed to decode fluentd option`)
+  }
+
   return nil
 }
 
 func ExampleFluentdMessage() {
   var f1 = FluentdMessage{
-    Tag:    "foo",
-    Time:   EventTime{Time: time.Unix(1234567890, 123).UTC()},
+    Tag:  "foo",
+    Time: EventTime{Time: time.Unix(1234567890, 123).UTC()},
     Record: map[string]interface{}{
-      "count": 100,
+      "count": 1000,
     },
   }
 
@@ -128,10 +155,8 @@ func ExampleFluentdMessage() {
 
   fmt.Printf("%s %s %v %v\n", f2.Tag, f2.Time, f2.Record, f2.Option)
   // OUTPUT:
-  // foo 2009-02-13 23:31:30.000000123 +0000 UTC map[count:100] <nil>
+  // foo 2009-02-13 23:31:30.000000123 +0000 UTC map[count:1000] <nil>
 }
-```
-
 # STATUS
 
 * Requires more testing for array/map/struct types
