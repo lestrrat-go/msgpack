@@ -137,110 +137,71 @@ func (e *Encoder) EncodeBool(b bool) error {
 }
 
 func (e *Encoder) EncodeFloat32(f float32) error {
-	if err := e.dst.WriteByte(Float.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Float code`)
-	}
-	if err := e.dst.WriteUint32(math.Float32bits(f)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Float payload`)
+	if err := e.dst.WriteByteUint32(Float.Byte(), math.Float32bits(f)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Float`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeFloat64(f float64) error {
-	if err := e.dst.WriteByte(Double.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Double code`)
-	}
-
-	if err := e.dst.WriteUint64(math.Float64bits(f)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Double payload`)
+	if err := e.dst.WriteByteUint64(Double.Byte(), math.Float64bits(f)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Double`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeUint8(i uint8) error {
-	if err := e.dst.WriteByte(Uint8.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint8 code`)
-	}
-
-	if err := e.dst.WriteUint8(i); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint8 payload`)
+	if err := e.dst.WriteByteUint8(Uint8.Byte(), i); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Uint8`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeUint16(i uint16) error {
-	if err := e.dst.WriteByte(Uint16.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint16 code`)
-	}
-
-	if err := e.dst.WriteUint16(i); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint16 payload`)
+	if err := e.dst.WriteByteUint16(Uint16.Byte(), i); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Uint16`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeUint32(i uint32) error {
-	if err := e.dst.WriteByte(Uint32.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint32 code`)
-	}
-
-	if err := e.dst.WriteUint32(i); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint32 payload`)
+	if err := e.dst.WriteByteUint32(Uint32.Byte(), i); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Uint32`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeUint64(i uint64) error {
-	if err := e.dst.WriteByte(Uint64.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint64 code`)
-	}
-
-	if err := e.dst.WriteUint64(i); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint64 payload`)
+	if err := e.dst.WriteByteUint64(Uint64.Byte(), i); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Uint64`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeInt8(i int8) error {
-	if err := e.dst.WriteByte(Int8.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int8 code`)
-	}
-
-	if err := e.dst.WriteByte(byte(i)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int8 payload`)
+	if err := e.dst.WriteByteUint8(Int8.Byte(), uint8(i)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Int8`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeInt16(i int16) error {
-	if err := e.dst.WriteByte(Int16.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int16 code`)
-	}
-
-	if err := e.dst.WriteUint16(uint16(i)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int16 payload`)
+	if err := e.dst.WriteByteUint16(Int16.Byte(), uint16(i)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Int16`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeInt32(i int32) error {
-	if err := e.dst.WriteByte(Int32.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int32 code`)
-	}
-
-	if err := e.dst.WriteUint32(uint32(i)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int32 payload`)
+	if err := e.dst.WriteByteUint32(Int32.Byte(), uint32(i)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Int32`)
 	}
 	return nil
 }
 
 func (e *Encoder) EncodeInt64(i int64) error {
-	if err := e.dst.WriteByte(Int64.Byte()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int64 code`)
-	}
-
-	if err := e.dst.WriteUint64(uint64(i)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int64 payload`)
+	if err := e.dst.WriteByteUint64(Int64.Byte(), uint64(i)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write Int64`)
 	}
 	return nil
 }
