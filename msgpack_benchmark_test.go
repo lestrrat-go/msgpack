@@ -78,6 +78,14 @@ type EncodeUint64er interface {
 	EncodeUint64(uint64) error
 }
 
+type EncodeFloat32er interface {
+	EncodeFloat32(float32) error
+}
+
+type EncodeFloat64er interface {
+	EncodeFloat64(float64) error
+}
+
 type EncodeInter interface {
 	EncodeInt(int) error
 }
@@ -137,6 +145,56 @@ var encoders = []struct {
 			return VmihailencoDecoder{Decoder: vmihailenco.NewDecoder(r)}
 		},
 	},
+}
+
+func BenchmarkEncodeFloat32(b *testing.B) {
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/encode float32 via Encode()", data.Name), func(b *testing.B) {
+				var v float32 = math.MaxFloat32
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeFloat32er); ok {
+			b.Run(fmt.Sprintf("%s/encode float32 via EncodeFloat32()", data.Name), func(b *testing.B) {
+				var v float32 = math.MaxFloat32
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeFloat32(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEncodeFloat64(b *testing.B) {
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/encode float64 via Encode()", data.Name), func(b *testing.B) {
+				var v float64 = math.MaxFloat64
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeFloat64er); ok {
+			b.Run(fmt.Sprintf("%s/encode float64 via EncodeFloat64()", data.Name), func(b *testing.B) {
+				var v float64 = math.MaxFloat64
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeFloat64(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
 }
 
 func BenchmarkEncodeUint8(b *testing.B) {

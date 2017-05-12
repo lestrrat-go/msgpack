@@ -61,6 +61,38 @@ func (w writer) WriteUint64(v uint64) error {
 	return err
 }
 
+func (w writer) WriteByteUint8(b byte, v uint8) error {
+	buf := w.buf[:2]
+	buf[0] = b
+	buf[1] = byte(v)
+	_, err := w.Write(buf)
+	return err
+}
+
+func (w writer) WriteByteUint16(b byte, v uint16) error {
+	buf := w.buf[:3]
+	buf[0] = b
+	binary.BigEndian.PutUint16(buf[1:], v)
+	_, err := w.Write(buf)
+	return err
+}
+
+func (w writer) WriteByteUint32(b byte, v uint32) error {
+	buf := w.buf[:5]
+	buf[0] = b
+	binary.BigEndian.PutUint32(buf[1:], v)
+	_, err := w.Write(buf)
+	return err
+}
+
+func (w writer) WriteByteUint64(b byte, v uint64) error {
+	buf := w.buf[:9]
+	buf[0] = b
+	binary.BigEndian.PutUint64(buf[1:], v)
+	_, err := w.Write(buf)
+	return err
+}
+
 type appendingWriter struct {
 	buf []byte
 }
@@ -117,6 +149,26 @@ func (w *appendingWriter) WriteUint64(v uint64) error {
 	}
 	binary.BigEndian.PutUint64(w.buf[len(w.buf)-size:], v)
 	return nil
+}
+
+func (w *appendingWriter) WriteByteUint8(b byte, v uint8) error {
+	w.buf = append(w.buf, b, byte(v))
+	return nil
+}
+
+func (w *appendingWriter) WriteByteUint16(b byte, v uint16) error {
+	w.buf = append(w.buf, b)
+	return w.WriteUint16(v)
+}
+
+func (w *appendingWriter) WriteByteUint32(b byte, v uint32) error {
+	w.buf = append(w.buf, b)
+	return w.WriteUint32(v)
+}
+
+func (w *appendingWriter) WriteByteUint64(b byte, v uint64) error {
+	w.buf = append(w.buf, b)
+	return w.WriteUint64(v)
 }
 
 func (w appendingWriter) Bytes() []byte {
