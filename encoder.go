@@ -315,6 +315,13 @@ func (e *Encoder) writePreamble(code Code, w int, l int) error {
 	return nil
 }
 
+func (e *Encoder) EncodeArrayHeader(l int) error {
+	if err := WriteArrayHeader(e.dst, l); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write array header`)
+	}
+	return nil
+}
+
 func (e *Encoder) EncodeArray(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
@@ -323,8 +330,8 @@ func (e *Encoder) EncodeArray(v interface{}) error {
 		return errors.Errorf(`msgpack: argument must be an array or a slice`)
 	}
 
-	if err := WriteArrayHeader(e.dst, rv.Len()); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write array header`)
+	if err := e.EncodeArrayHeader(rv.Len()); err != nil {
+		return err
 	}
 
 	switch rv.Type().Elem().Kind() {

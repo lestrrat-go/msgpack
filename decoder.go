@@ -2,337 +2,293 @@ package msgpack
 
 import (
 	"bufio"
-	"fmt"
 	"io"
-	"math"
 	"reflect"
 
-	bufferpool "github.com/lestrrat/go-bufferpool"
 	"github.com/pkg/errors"
 )
 
-type valueDecoder interface {
-	Decode(io.Reader) (interface{}, error)
-}
+var decodeMsgpackExterType = reflect.TypeOf((*DecodeMsgpackExter)(nil)).Elem()
 
-var decoders = map[Code]valueDecoder{
-	Float:   &floatDecoder{code: Float},
-	Double:  &floatDecoder{code: Double},
-	Uint8:   &uintDecoder{code: Uint8},
-	Uint16:  &uintDecoder{code: Uint16},
-	Uint32:  &uintDecoder{code: Uint32},
-	Uint64:  &uintDecoder{code: Uint64},
-	Int8:    &intDecoder{code: Int8},
-	Int16:   &intDecoder{code: Int16},
-	Int32:   &intDecoder{code: Int32},
-	Int64:   &intDecoder{code: Int64},
-	Ext8:    &extDecoder{code: Ext8},
-	FixExt8: &extDecoder{code: FixExt8},
-	Str8:    &strDecoder{code: Str8},
-	Str16:   &strDecoder{code: Str16},
-	Str32:   &strDecoder{code: Str32},
-	Bin8:    &strDecoder{code: Bin8},
-	Bin16:   &strDecoder{code: Bin16},
-	Bin32:   &strDecoder{code: Bin32},
-	Array16: &arrayDecoder{code: Array16},
-	Array32: &arrayDecoder{code: Array32},
-	Map16:   &mapDecoder{code: Map16},
-	Map32:   &mapDecoder{code: Map32},
-}
-
-func init() {
-	for i := 0; i < 32; i++ {
-		code := Code(FixStr0.Byte() + byte(i))
-		decoders[code] = &fixstrDecoder{code: code}
-	}
-	for i := 0; i < 16; i++ {
-		code := Code(FixArray0.Byte() + byte(i))
-		decoders[code] = &arrayDecoder{code: code}
-
-		code = Code(FixMap0.Byte() + byte(i))
-		decoders[code] = &mapDecoder{code: code}
+func NewDecoder(r io.Reader) *Decoder {
+	raw := bufio.NewReader(r)
+	return &Decoder{
+		raw: raw,
+		src: NewReader(raw),
 	}
 }
 
-type floatDecoder struct {
-	code Code
+func (d *Decoder) ReadCode() (Code, error) {
+	b, err := d.raw.ReadByte()
+	if err != nil {
+		return Code(0), errors.Wrap(err, `msgpack: failed to read code`)
+	}
+
+	return Code(b), nil
 }
 
-func (d *floatDecoder) Decode(r io.Reader) (interface{}, error) {
-	rdr := NewReader(r)
-	switch d.code {
-	case Float:
-		n, err := rdr.ReadUint32()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to read uint32 for Float`)
-		}
-		return math.Float32frombits(n), nil
-	case Double:
-		n, err := rdr.ReadUint64()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to read uint64 for Float`)
-		}
-		return math.Float64frombits(n), nil
+func (d *Decoder) PeekCode() (Code, error) {
+	code, err := d.ReadCode()
+	if err != nil {
+		return code, errors.Wrap(err, `msgpack: failed to peek code`)
+	}
+
+	if err := d.raw.UnreadByte(); err != nil {
+		return Code(0), errors.Wrap(err, `msgpack: failed to unread code`)
+	}
+	return code, nil
+}
+
+func (d *Decoder) DecodeNil(v *interface{}) error {
+	code, err := d.ReadCode()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code`)
+	}
+	if code != Nil {
+		return errors.Errorf(`msgpack: expected True/False, got %s`, code)
+	}
+	*v = nil
+	return nil
+}
+
+func (d *Decoder) DecodeBool(b *bool) error {
+	code, err := d.ReadCode()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code`)
+	}
+
+	switch code {
+	case True:
+		*b = true
+		return nil
+	case False:
+		*b = false
+		return nil
 	default:
-		return nil, errors.Errorf(`msgpack: unknown float code %s`, d.code)
+		return errors.Errorf(`msgpack: expected True/False, got %s`, code)
 	}
 }
 
-type uintDecoder struct {
-	code Code
-}
-
-func (d *uintDecoder) Decode(r io.Reader) (interface{}, error) {
-	rdr := NewReader(r)
-	switch d.code {
-	case Uint8:
-		v, err := rdr.ReadUint8()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to decode uint8`)
-		}
-		return v, nil
-	case Uint16:
-		v, err := rdr.ReadUint16()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to decode uint16`)
-		}
-		return v, nil
-	case Uint32:
-		v, err := rdr.ReadUint32()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to decode uint32`)
-		}
-		return v, nil
-	case Uint64:
-		v, err := rdr.ReadUint64()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to decode uint64`)
-		}
-		return v, nil
-	default:
-		return nil, errors.Errorf(`msgpack: invalid code %s for uint`, d.code)
+func (d *Decoder) DecodeBytes(v *[]byte) error {
+	code, err := d.ReadCode()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
-}
 
-type intDecoder struct {
-	code Code
-}
-
-func (d *intDecoder) Decode(r io.Reader) (interface{}, error) {
-	rdr := NewReader(r)
-	switch d.code {
-	case Int8:
-		v, err := rdr.ReadUint8()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to decode int8`)
-		}
-		return int8(v), nil
-	case Int16:
-		v, err := rdr.ReadUint16()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to decode int16`)
-		}
-		return int16(v), nil
-	case Int32:
-		v, err := rdr.ReadUint32()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to decode uint32`)
-		}
-		return int32(v), nil
-	case Int64:
-		v, err := rdr.ReadUint64()
-		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to decode int64`)
-		}
-		return int64(v), nil
-	default:
-		return nil, errors.Errorf(`msgpack: invalid code %s for int`, d.code)
-	}
-}
-
-type strDecoder struct {
-	code Code
-}
-
-func (d *strDecoder) Decode(r io.Reader) (interface{}, error) {
-	rdr := NewReader(r)
 	var l int64
-	switch d.code {
-	case Str8, Bin8:
-		v, err := rdr.ReadUint8()
+	switch {
+	case code == Bin8:
+		v, err := d.src.ReadUint8()
 		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
 		l = int64(v)
-	case Str16, Bin16:
-		v, err := rdr.ReadUint16()
+	case code == Bin16:
+		v, err := d.src.ReadUint16()
 		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
 		l = int64(v)
-	case Str32, Bin32:
-		v, err := rdr.ReadUint32()
+	case code == Bin32:
+		v, err := d.src.ReadUint32()
 		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
 		l = int64(v)
+	default:
+		return errors.Wrapf(err, `msgpack: invalid code: expected Bin8/Bin16/Bin32, got %s`, code)
 	}
 
-	buf := bufferpool.Get()
-	switch d.code {
-	case Bin8, Bin16, Bin32:
-		// Note: no defer, because the callee wants to use this buffer
-		return buf.Bytes(), nil
+	// Sanity check
+	if l < 0 {
+		return errors.Wrapf(err, `msgpack: invalid byte slice length %d`, l)
 	}
 
-	// buf.String() is an immutable copy, so we don't need to have
-	// the buffer lying around
-	defer bufferpool.Release(buf)
-	if _, err := io.CopyN(buf, r, l); err != nil {
-		return nil, errors.Wrap(err, `msgpack: failed to read string`)
+	b := make([]byte, l)
+	for x := b; len(x) > 0; {
+		n, err := d.raw.Read(x)
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read byte slice`)
+		}
+		x = x[n:]
 	}
 
-	return buf.String(), nil
+	*v = b
+	return nil
 }
 
-type fixstrDecoder struct {
-	code Code
-}
-
-func (d *fixstrDecoder) Decode(r io.Reader) (interface{}, error) {
-	l := int64(d.code.Byte() - FixStr0.Byte())
-
-	buf := bufferpool.Get()
-	bufferpool.Release(buf)
-	n, err := io.CopyN(buf, r, l)
-	if n != l && err != nil {
-		return nil, errors.Wrap(err, `msgpack: failed to decode FixStr (body)`)
+func (d *Decoder) DecodeString(s *string) error {
+	code, err := d.ReadCode()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
 
-	return buf.String(), nil
+	var l int64
+	switch {
+	case code >= FixStr0 && code <= FixStr31:
+		l = int64(code.Byte() - FixStr0.Byte())
+	case code == Str8:
+		v, err := d.src.ReadUint8()
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+		}
+		l = int64(v)
+	case code == Str16:
+		v, err := d.src.ReadUint16()
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+		}
+		l = int64(v)
+	case code == Str32:
+		v, err := d.src.ReadUint32()
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
+		}
+		l = int64(v)
+	default:
+		return errors.Wrapf(err, `msgpack: invalid code: expected FixStr/Str8/Str16/Str32, got %s`, code)
+	}
+
+	// Sanity check
+	if l < 0 {
+		return errors.Wrapf(err, `msgpack: invalid string length %d`, l)
+	}
+
+	b := make([]byte, l)
+	for x := b; len(x) > 0; {
+		n, err := d.raw.Read(x)
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read string`)
+		}
+		x = x[n:]
+	}
+
+	*s = string(b)
+	return nil
 }
 
-type arrayDecoder struct {
-	code Code
+func (d *Decoder) DecodeArrayLength(l *int) error {
+	code, err := d.ReadCode()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code`)
+	}
+
+	if code >= FixArray0 && code <= FixArray15 {
+		*l = int(code.Byte() - FixArray0.Byte())
+		return nil
+	}
+
+	switch code {
+	case Array16:
+		s, err := d.src.ReadUint16()
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read array size for Array16`)
+		}
+		*l = int(s)
+	case Array32:
+		s, err := d.src.ReadUint32()
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read array size for Array32`)
+		}
+		*l = int(s)
+	default:
+		return errors.Errorf(`msgpack: unsupported array type %s`, code)
+	}
+
+	return nil
 }
 
-func (d *arrayDecoder) Decode(r io.Reader) (interface{}, error) {
+func (d *Decoder) DecodeArray(v *[]interface{}) error {
 	var size int
-	if d.code >= FixArray0 && d.code <= FixArray15 {
-		size = int(d.code.Byte() - FixArray0.Byte())
-	} else {
-		rdr := NewReader(r)
-		switch d.code {
-		case Array16:
-			s, err := rdr.ReadUint16()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read array size for Array16`)
-			}
-			size = int(s)
-		case Array32:
-			s, err := rdr.ReadUint32()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read array size for Array32`)
-			}
-			size = int(s)
-		default:
-			return nil, errors.Errorf(`msgpack: unsupported array type %s`, d.code)
-		}
+	if err := d.DecodeArrayLength(&size); err != nil {
+		return errors.Wrap(err, `msgpack: failed to decode array length`)
 	}
 
 	l := make([]interface{}, size)
-	dec := NewDecoder(r)
 	for i := 0; i < size; i++ {
-		if err := dec.Decode(&l[i]); err != nil {
-			return nil, errors.Wrapf(err, `msgpack: failed to decode array at index %d`, i)
+		if err := d.Decode(&l[i]); err != nil {
+			return errors.Wrapf(err, `msgpack: failed to decode array element %d`, i)
 		}
 	}
-
-	return l, nil
+	*v = l
+	return nil
 }
 
-type mapDecoder struct {
-	code Code
+func (d *Decoder) DecodeMapLength(l *int) error {
+	code, err := d.ReadCode()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code`)
+	}
+
+	if code >= FixMap0 && code <= FixMap15 {
+		*l = int(code.Byte() - FixMap0.Byte())
+		return nil
+	}
+
+	switch code {
+	case Map16:
+		s, err := d.src.ReadUint16()
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read array size for Map16`)
+		}
+		*l = int(s)
+	case Map32:
+		s, err := d.src.ReadUint32()
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to read array size for Map32`)
+		}
+		*l = int(s)
+	default:
+		return errors.Errorf(`msgpack: unsupported map type %s`, code)
+	}
+
+	return nil
 }
 
-func (d *mapDecoder) Decode(r io.Reader) (interface{}, error) {
+func (d *Decoder) DecodeMap(v *map[string]interface{}) error {
 	var size int
-	if d.code >= FixMap0 && d.code <= FixMap15 {
-		size = int(d.code.Byte() - FixMap0.Byte())
-	} else {
-		rdr := NewReader(r)
-		switch d.code {
-		case Map16:
-			s, err := rdr.ReadUint16()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read map size for Map16`)
-			}
-			size = int(s)
-		case Map32:
-			s, err := rdr.ReadUint32()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read map size for Map32`)
-			}
-			size = int(s)
-		default:
-			return nil, errors.Errorf(`msgpack: unsupported map type %s`, d.code)
-		}
+	if err := d.DecodeMapLength(&size); err != nil {
+		return errors.Wrap(err, `msgpack: failed to decode map length`)
 	}
 
-	dec := NewDecoder(r)
-	var m = map[string]interface{}{}
-	var key string
-	var value interface{}
+	m := make(map[string]interface{})
 	for i := 0; i < size; i++ {
-		if err := dec.Decode(&key); err != nil {
-			return nil, errors.Wrapf(err, `msgpack: failed to decode fixmap key (%d/%d)`, i+1, size+1)
-		}
-		if err := dec.Decode(&value); err != nil {
-			return nil, errors.Wrapf(err, `msgpack: failed to decode fixmap value for key %s (%d/%d)`, key, i+1, size+1)
+		var s string
+		if err := d.DecodeString(&s); err != nil {
+			return errors.Wrap(err, `msgpack: failed to decode map key`)
 		}
 
-		m[key] = value
+		var v interface{}
+		if err := d.Decode(&v); err != nil {
+			return errors.Wrapf(err, `msgpack: failed to decode map element for key %s`, s)
+		}
+		m[s] = v
+	}
+	*v = m
+	return nil
+}
+
+func (d *Decoder) DecodeStruct(v interface{}) error {
+	if _, ok := v.(DecodeMsgpackExter); ok {
+		return d.Decode(v)
 	}
 
-	return m, nil
-}
-
-type structDecoder struct {
-	code   Code
-	target reflect.Type
-}
-
-func (d *structDecoder) Decode(r io.Reader) (interface{}, error) {
 	var size int
-	if d.code >= FixMap0 && d.code <= FixMap15 {
-		size = int(d.code.Byte() - FixMap0.Byte())
-	} else {
-		rdr := NewReader(r)
-		switch d.code {
-		case Map16:
-			s, err := rdr.ReadUint16()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read map size for Map16`)
-			}
-			size = int(s)
-		case Map32:
-			s, err := rdr.ReadUint32()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read map size for Map32`)
-			}
-			size = int(s)
-		default:
-			return nil, errors.Errorf(`msgpack: unsupported map type %s`, d.code)
-		}
+	if err := d.DecodeMapLength(&size); err != nil {
+		return errors.Wrap(err, `msgpack: failed to decode map length`)
 	}
 
-	dec := NewDecoder(r)
-	var s = reflect.New(d.target)
+	var rv = reflect.ValueOf(v)
+	// You better be a pointer to a struct, damnit
+	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
+		return errors.New(`msgpack: expected pointer to struct`)
+	}
 
-	// XXX: This needs caching
+	var rt = rv.Elem().Type()
+	// Find the fields
 	name2field := map[string]reflect.Value{}
-	for i := 0; i < d.target.NumField(); i++ {
-		field := d.target.Field(i)
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
 		if field.PkgPath != "" {
 			continue
 		}
@@ -342,14 +298,14 @@ func (d *structDecoder) Decode(r io.Reader) (interface{}, error) {
 			continue
 		}
 
-		name2field[name] = s.Elem().Field(i)
+		name2field[name] = rv.Elem().Field(i)
 	}
 
 	var key string
 	var value interface{}
 	for i := 0; i < size; i++ {
-		if err := dec.Decode(&key); err != nil {
-			return nil, errors.Wrapf(err, `msgpack: failed to decode struct key at index %d`, i)
+		if err := d.Decode(&key); err != nil {
+			return errors.Wrapf(err, `msgpack: failed to decode struct key at index %d`, i)
 		}
 
 		f, ok := name2field[key]
@@ -358,259 +314,40 @@ func (d *structDecoder) Decode(r io.Reader) (interface{}, error) {
 		}
 
 		if f.Kind() == reflect.Struct {
-			if err := dec.Decode(f.Addr().Interface()); err != nil {
-				return nil, errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+			if err := d.Decode(f.Addr().Interface()); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
 			}
 		} else if f.Kind() == reflect.Ptr && f.Type().Elem().Kind() == reflect.Struct {
-			if err := dec.Decode(f.Interface()); err != nil {
-				return nil, errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+			if err := d.Decode(f.Interface()); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
 			}
 		} else {
-			if err := dec.Decode(&value); err != nil {
-				return nil, errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+			if err := d.Decode(&value); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
 			}
 
 			fv := reflect.ValueOf(value)
 			if !fv.Type().ConvertibleTo(f.Type()) {
-				return nil, errors.Errorf(`msgpack: cannot convert from %s to %s`, fv.Type(), f.Type())
+				return errors.Errorf(`msgpack: cannot convert from %s to %s`, fv.Type(), f.Type())
 			}
 			f.Set(reflect.ValueOf(value).Convert(f.Type()))
 		}
-
 	}
 
-	return s.Elem().Interface(), nil
-}
-
-type extDecoder struct {
-	code Code
-}
-
-var decodeMsgpackExterType = reflect.TypeOf((*DecodeMsgpackExter)(nil)).Elem()
-
-func (d *extDecoder) Decode(r io.Reader) (interface{}, error) {
-	rdr := NewReader(r)
-
-	var size int
-	switch d.code {
-	case Ext8:
-		size = 1
-	}
-
-	var payloadSize int64
-	if size > 0 {
-		switch d.code {
-		case Ext8:
-			s, err := rdr.ReadUint8()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read size for ext8 value`)
-			}
-			payloadSize = int64(s)
-		case Ext16:
-			s, err := rdr.ReadUint16()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read size for ext16 value`)
-			}
-			payloadSize = int64(s)
-		case Ext32:
-			s, err := rdr.ReadUint32()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read size for ext32 value`)
-			}
-			payloadSize = int64(s)
-		default:
-			return nil, errors.Errorf(`msgpack: unsupported ext %s`, d.code)
-		}
-	} else {
-		switch d.code {
-		case FixExt8:
-			payloadSize = 8
-		}
-	}
-	_ = payloadSize
-
-	// lookup the Go type from Msgpack type
-	b, err := rdr.ReadByte()
-	if err != nil {
-		return nil, errors.Wrap(err, `msgpack: failed to read type byte`)
-	}
-	exttyp := int(b)
-
-	muExtDecode.RLock()
-	typ, ok := extDecodeRegistry[exttyp]
-	muExtDecode.RUnlock()
-
-	if !ok {
-		return nil, errors.Wrapf(err, `msgpack: failed to lookup msgpack type %d`, exttyp)
-	}
-
-	if reflect.PtrTo(typ).Implements(decodeMsgpackExterType) {
-		rv := reflect.New(typ).Interface().(DecodeMsgpackExter)
-		// At this point we delegate to the underlying object, but
-		// we should limit reading to the payload size
-		if err := rv.DecodeMsgpackExt(NewReader(io.LimitReader(r, payloadSize))); err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to call DecodeMsgpackExt`)
-		}
-
-		return rv, nil
-	}
-
-	return nil, errors.Errorf(`msgpack: %s does not implement DecodeMsgpackExter`, typ)
-}
-
-func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{
-		r: bufio.NewReader(r),
-	}
-}
-
-func (d *Decoder) PeekCode() (Code, error) {
-	b, err := d.r.ReadByte()
-	if err != nil {
-		return Code(0), errors.Wrap(err, `msgpack: failed to peek code`)
-	}
-
-	if err := d.r.UnreadByte(); err != nil {
-		return Code(0), errors.Wrap(err, `msgpack: failed to unread code`)
-	}
-	return Code(b), nil
-}
-
-func (d *Decoder) DecodeNil() error {
-	var v interface{}
-	if err := d.Decode(&v); err != nil {
-		return errors.Wrap(err, `failed to decode nil`)
-	}
 	return nil
-}
-
-func (d *Decoder) DecodeBool() (bool, error) {
-	var v bool
-	if err := d.Decode(&v); err != nil {
-		return false, errors.Wrap(err, `failed to decode bool`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeFloat32() (float32, error) {
-	var v float32
-	if err := d.Decode(&v); err != nil {
-		return float32(0), errors.Wrap(err, `failed to decode float32`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeFloat64() (float64, error) {
-	var v float64
-	if err := d.Decode(&v); err != nil {
-		return float64(0), errors.Wrap(err, `failed to decode float64`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeUint8() (uint8, error) {
-	var v uint8
-	if err := d.Decode(&v); err != nil {
-		return uint8(0), errors.Wrap(err, `failed to decode uint8`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeUint16() (uint16, error) {
-	var v uint16
-	if err := d.Decode(&v); err != nil {
-		return uint16(0), errors.Wrap(err, `failed to decode uint16`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeUint32() (uint32, error) {
-	var v uint32
-	if err := d.Decode(&v); err != nil {
-		return uint32(0), errors.Wrap(err, `failed to decode uint32`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeUint64() (uint64, error) {
-	var v uint64
-	if err := d.Decode(&v); err != nil {
-		return uint64(0), errors.Wrap(err, `failed to decode uint64`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeInt8() (int8, error) {
-	var v int8
-	if err := d.Decode(&v); err != nil {
-		return int8(0), errors.Wrap(err, `failed to decode int8`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeInt16() (int16, error) {
-	var v int16
-	if err := d.Decode(&v); err != nil {
-		return int16(0), errors.Wrap(err, `failed to decode int16`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeInt32() (int32, error) {
-	var v int32
-	if err := d.Decode(&v); err != nil {
-		return int32(0), errors.Wrap(err, `failed to decode int32`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeString() (string, error) {
-	var v string
-	if err := d.Decode(&v); err != nil {
-		return "", errors.Wrap(err, `failed to decode string`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeInt64() (int64, error) {
-	var v int64
-	if err := d.Decode(&v); err != nil {
-		return int64(0), errors.Wrap(err, `failed to decode int64`)
-	}
-	return v, nil
-}
-
-func (d *Decoder) DecodeArray() ([]interface{}, error) {
-	var v []interface{}
-	if err := d.Decode(&v); err != nil {
-		return nil, errors.Wrap(err, `msgpack: failed to decode array`)
-	}
-	return v, nil
-}
-
-func lookupDecoder(code Code) (valueDecoder, error) {
-	dec, ok := decoders[code]
-	if !ok {
-		return nil, errors.Errorf(`msgpack: decoder for %s not found`, code)
-	}
-	return dec, nil
 }
 
 // Decode takes a pointer to a variable, and populates it with the value
 // that was unmarshaled from the stream.
 // If the variable is a non-pointer or nil, an error is returned.
 func (d *Decoder) Decode(v interface{}) error {
+	// If we know this object does its own decoding, we bypass everything
+	// and just let it handle itself
 	if dm, ok := v.(DecodeMsgpacker); ok {
 		return dm.DecodeMsgpack(d)
 	}
 
-	decoded, err := d.decodeInterface(v)
-	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to decode value`)
-	}
-
 	rv := reflect.ValueOf(v)
-
 	// The result of decoding must be assigned to v, and v
 	// should be a pointer
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
@@ -622,6 +359,57 @@ func (d *Decoder) Decode(v interface{}) error {
 		return &InvalidDecodeError{
 			Type: typ,
 		}
+	}
+
+	// Is this object a DecodeMsgpackExt?
+	if _, ok := v.(DecodeMsgpackExter); ok {
+		goto FromCode
+	}
+
+	// First, try guessing what to do by checking the type of the
+	// incoming payload. These are the easy choices
+	switch v := v.(type) {
+	case *interface{}:
+		goto FromCode
+	case *int:
+		return d.DecodeInt(v)
+	case *int8:
+		return d.DecodeInt8(v)
+	case *int16:
+		return d.DecodeInt16(v)
+	case *int32:
+		return d.DecodeInt32(v)
+	case *int64:
+		return d.DecodeInt64(v)
+	case *uint:
+		return d.DecodeUint(v)
+	case *uint8:
+		return d.DecodeUint8(v)
+	case *uint16:
+		return d.DecodeUint16(v)
+	case *uint32:
+		return d.DecodeUint32(v)
+	case *uint64:
+		return d.DecodeUint64(v)
+	case *float32:
+		return d.DecodeFloat32(v)
+	case *float64:
+		return d.DecodeFloat64(v)
+	case *string:
+		return d.DecodeString(v)
+	}
+
+	// Next up: try using reflect to find out the general family of
+	// the payload.
+	switch rv.Elem().Kind() {
+	case reflect.Struct:
+		return d.DecodeStruct(v)
+	}
+
+FromCode:
+	decoded, err := d.decodeInterface(v)
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to decode interface value`)
 	}
 
 	// if decoded == nil, then we have a special case, where we need
@@ -665,31 +453,115 @@ func (d *Decoder) Decode(v interface{}) error {
 	return errors.Errorf(`msgpack: cannot assign %s to %s`, dv.Type(), dst.Type())
 }
 
-// Note: v is only used as a hint. do not assign in this method
+// Note: v is only used as a hint. do not assign to it inside this method
 func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 	code, err := d.PeekCode()
 	if err != nil {
 		return nil, errors.Wrap(err, `msgpack: failed to peek code`)
 	}
-	d.r.ReadByte() // throw away code
 
-	switch code {
-	case Nil:
+	switch {
+	case IsExtFamily(code):
+		return d.decodeExt()
+	case code == Nil:
+		// Optimization: doesn't require any more handling than to
+		// throw away the code
+		d.raw.ReadByte()
 		return nil, nil
-	case True:
+	case code == True:
+		// Optimization: doesn't require any more handling than to
+		// throw away the code
+		d.raw.ReadByte()
 		return true, nil
-	case False:
+	case code == False:
+		// Optimization: doesn't require any more handling than to
+		// throw away the code
+		d.raw.ReadByte()
 		return false, nil
-	}
-
-	var dec valueDecoder
-	// Special case: If the object is a Map type, and the target object
-	// is a Struct, we do the struct decoding bit.
-	if IsMapFamily(code) {
+	case code == Int8:
+		var x int8
+		if err := d.DecodeInt8(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Int8`)
+		}
+		return x, nil
+	case code == Int16:
+		var x int16
+		if err := d.DecodeInt16(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Int16`)
+		}
+		return x, nil
+	case code == Int32:
+		var x int32
+		if err := d.DecodeInt32(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Int32`)
+		}
+		return x, nil
+	case code == Int64:
+		var x int64
+		if err := d.DecodeInt64(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Int64`)
+		}
+		return x, nil
+	case code == Uint8:
+		var x uint8
+		if err := d.DecodeUint8(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Uint8`)
+		}
+		return x, nil
+	case code == Uint16:
+		var x uint16
+		if err := d.DecodeUint16(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Uint16`)
+		}
+		return x, nil
+	case code == Uint32:
+		var x uint32
+		if err := d.DecodeUint32(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Uint32`)
+		}
+		return x, nil
+	case code == Uint64:
+		var x uint64
+		if err := d.DecodeUint64(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Uint64`)
+		}
+		return x, nil
+	case code == Float:
+		var x float32
+		if err := d.DecodeFloat32(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Float`)
+		}
+		return x, nil
+	case code == Double:
+		var x float64
+		if err := d.DecodeFloat64(&x); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode Double`)
+		}
+		return x, nil
+	case IsBinFamily(code):
+		var b []byte
+		if err := d.DecodeBytes(&b); err != nil {
+			return nil, errors.Wrapf(err, `msgpack: failed to decode %s`, code)
+		}
+		return b, nil
+	case IsStrFamily(code):
+		var s string
+		if err := d.DecodeString(&s); err != nil {
+			return nil, errors.Wrapf(err, `msgpack: failed to decode %s`, code)
+		}
+		return s, nil
+	case IsArrayFamily(code):
+		var l []interface{}
+		if err := d.DecodeArray(&l); err != nil {
+			return nil, errors.Wrapf(err, `msgpack: failed to decode %s`, code)
+		}
+		return l, nil
+	case IsMapFamily(code):
+		// Special case: If the object is a Map type, and the target object
+		// is a Struct, we do the struct decoding bit.
 		// could be &struct, interface{}(&struct{}), or interface{}(&interface{}(struct{}))
 		rv := reflect.ValueOf(v)
 		if rv.Type().Kind() == reflect.Interface {
-			fmt.Println("is interface")
 			rv = rv.Elem()
 		}
 
@@ -699,23 +571,88 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 				rv = rv.Elem()
 			}
 			if rv.Kind() == reflect.Struct {
-				dec = &structDecoder{code: code, target: rv.Type()}
+				v := reflect.New(rv.Type()).Interface()
+				if err := d.DecodeStruct(v); err != nil {
+					return nil, errors.Wrap(err, `msgpack: failed to decode struct`)
+				}
+				return reflect.ValueOf(v).Elem().Interface(), nil
 			}
 		}
-	}
 
-	if dec == nil {
-		var err error
-		dec, err = lookupDecoder(code)
-		if err != nil {
-			return nil, errors.Wrapf(err, `msgpack: failed to lookup decoder for code %s`, code)
+		var v = make(map[string]interface{})
+		if err := d.DecodeMap(&v); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode map`)
 		}
+		return v, nil
+	default:
+		return nil, errors.Errorf(`msgpack: invalid code %s`, code)
 	}
+}
 
-	decoded, err := dec.Decode(d.r)
+func (d *Decoder) decodeExt() (interface{}, error) {
+	code, err := d.ReadCode()
 	if err != nil {
-		return nil, errors.Wrap(err, `msgpack: failed to decode value`)
+		return nil, errors.Wrap(err, `msgpack: failed to read code`)
 	}
 
-	return decoded, nil
+	var payloadSize int64
+	switch code {
+	case FixExt1:
+		payloadSize = 1
+	case FixExt2:
+		payloadSize = 2
+	case FixExt4:
+		payloadSize = 1
+	case FixExt8:
+		payloadSize = 8
+	case FixExt16:
+		payloadSize = 16
+	case Ext8:
+		s, err := d.src.ReadUint8()
+		if err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to read size for ext8 value`)
+		}
+		payloadSize = int64(s)
+		case Ext16:
+			s, err := d.src.ReadUint16()
+			if err != nil {
+				return nil, errors.Wrap(err, `msgpack: failed to read size for ext16 value`)
+			}
+			payloadSize = int64(s)
+		case Ext32:
+			s, err := d.src.ReadUint32()
+			if err != nil {
+				return nil, errors.Wrap(err, `msgpack: failed to read size for ext32 value`)
+			}
+			payloadSize = int64(s)
+	}
+
+	// lookup the Go type from Msgpack type
+	b, err := d.raw.ReadByte()
+	if err != nil {
+		return nil, errors.Wrap(err, `msgpack: failed to read type byte`)
+	}
+	exttyp := int(b)
+
+	muExtDecode.RLock()
+	typ, ok := extDecodeRegistry[exttyp]
+	muExtDecode.RUnlock()
+
+	if !ok {
+		return nil, errors.Wrapf(err, `msgpack: failed to lookup msgpack type %d`, exttyp)
+	}
+
+	if reflect.PtrTo(typ).Implements(decodeMsgpackExterType) {
+		rv := reflect.New(typ).Interface().(DecodeMsgpackExter)
+		// At this point we delegate to the underlying object, but
+		// we should limit reading to the payload size
+
+		if err := rv.DecodeMsgpackExt(NewReader(io.LimitReader(d.raw, payloadSize))); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to call DecodeMsgpackExt`)
+		}
+
+		return rv, nil
+	}
+
+	return nil, errors.Errorf(`msgpack: %s does not implement DecodeMsgpackExter`, typ)
 }
