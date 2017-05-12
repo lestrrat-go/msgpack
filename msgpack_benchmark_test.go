@@ -78,6 +78,26 @@ type EncodeUint64er interface {
 	EncodeUint64(uint64) error
 }
 
+type EncodeInter interface {
+	EncodeInt(int) error
+}
+
+type EncodeInt8er interface {
+	EncodeInt8(int8) error
+}
+
+type EncodeInt16er interface {
+	EncodeInt16(int16) error
+}
+
+type EncodeInt32er interface {
+	EncodeInt32(int32) error
+}
+
+type EncodeInt64er interface {
+	EncodeInt64(int64) error
+}
+
 // Oh why, why did you need to declare your Decode with variadic
 // input list?
 type VmihailencoDecoder struct {
@@ -211,6 +231,106 @@ func BenchmarkEncodeUint64(b *testing.B) {
 				var v uint64 = math.MaxUint64
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeUint64(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEncodeInt8(b *testing.B) {
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/encode int8 via Encode()", data.Name), func(b *testing.B) {
+				var v int8 = math.MaxInt8
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeInt8er); ok {
+			b.Run(fmt.Sprintf("%s/encode int8 via EncodeInt8()", data.Name), func(b *testing.B) {
+				var v int8 = math.MaxInt8
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeInt8(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEncodeInt16(b *testing.B) {
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/encode int16 via Encode()", data.Name), func(b *testing.B) {
+				var v int16 = math.MaxInt16
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeInt16er); ok {
+			b.Run(fmt.Sprintf("%s/encode int16 via EncodeInt16()", data.Name), func(b *testing.B) {
+				var v int16 = math.MaxInt16
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeInt16(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEncodeInt32(b *testing.B) {
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/encode int32 via Encode()", data.Name), func(b *testing.B) {
+				var v int32 = math.MaxInt32
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeInt32er); ok {
+			b.Run(fmt.Sprintf("%s/encode int32 via EncodeInt32()", data.Name), func(b *testing.B) {
+				var v int32 = math.MaxInt32
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeInt32(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEncodeInt64(b *testing.B) {
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/encode int64 via Encode()", data.Name), func(b *testing.B) {
+				var v int64 = math.MaxInt64
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeInt64er); ok {
+			b.Run(fmt.Sprintf("%s/encode int64 via EncodeInt64()", data.Name), func(b *testing.B) {
+				var v int64 = math.MaxInt64
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeInt64(v); err != nil {
 						panic(err)
 					}
 				}
