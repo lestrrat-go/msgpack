@@ -52,6 +52,8 @@ func (e *Encoder) Encode(v interface{}) error {
 	switch v := v.(type) {
 	case string:
 		return e.EncodeString(v)
+	case []byte:
+		return e.EncodeBytes(v)
 	case bool:
 		return e.EncodeBool(v)
 	case float32:
@@ -109,9 +111,6 @@ INDIRECT:
 	v = rv.Interface()
 	switch rv.Kind() {
 	case reflect.Slice:
-		if rv.Type().Elem() == byteType {
-			return e.EncodeBytes(v.([]byte))
-		}
 		return e.EncodeArray(v)
 	case reflect.Map:
 		return e.EncodeMap(v)
