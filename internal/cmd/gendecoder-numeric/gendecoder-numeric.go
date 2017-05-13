@@ -89,16 +89,12 @@ func generateIntegerTypes(dst io.Writer) error {
 
 	for typ, data := range types {
 		fmt.Fprintf(dst, "\n\nfunc (d *Decoder) Decode%s(v *%s) error {", util.Ucfirst(typ.String()), typ)
-		fmt.Fprintf(dst, "\ncode, err := d.ReadCode()")
-		fmt.Fprintf(dst, "\nif err != nil {")
-		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read code`)")
-		fmt.Fprintf(dst, "\n}")
-		fmt.Fprintf(dst, "\n\nif code != %s {", data.Code)
-		fmt.Fprintf(dst, "\nreturn errors.Errorf(`msgpack: expected %s, got %%s`, code)", data.Code)
-		fmt.Fprintf(dst, "\n}")
-		fmt.Fprintf(dst, "\n\nx, err := d.src.ReadUint%d()", data.Bits)
+		fmt.Fprintf(dst, "\ncode, x, err := d.src.ReadByteUint%d()", data.Bits)
 		fmt.Fprintf(dst, "\nif err != nil {")
 		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read %s`)", typ)
+		fmt.Fprintf(dst, "\n}")
+		fmt.Fprintf(dst, "\n\nif code != %s.Byte() {", data.Code)
+		fmt.Fprintf(dst, "\nreturn errors.Errorf(`msgpack: expected %s, got %%s`, code)", data.Code)
 		fmt.Fprintf(dst, "\n}")
 		switch typ {
 		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -123,16 +119,12 @@ func generateFloatTypes(dst io.Writer) error {
 
 	for typ, data := range types {
 		fmt.Fprintf(dst, "\n\nfunc (d *Decoder) Decode%s(v *%s) error {", util.Ucfirst(typ.String()), typ)
-		fmt.Fprintf(dst, "\ncode, err := d.ReadCode()")
-		fmt.Fprintf(dst, "\nif err != nil {")
-		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read code`)")
-		fmt.Fprintf(dst, "\n}")
-		fmt.Fprintf(dst, "\n\nif code != %s {", data.Code)
-		fmt.Fprintf(dst, "\nreturn errors.Errorf(`msgpack: expected %s, got %%s`, code)", data.Code)
-		fmt.Fprintf(dst, "\n}")
-		fmt.Fprintf(dst, "\n\nx, err := d.src.ReadUint%d()", data.Bits)
+		fmt.Fprintf(dst, "\ncode, x, err := d.src.ReadByteUint%d()", data.Bits)
 		fmt.Fprintf(dst, "\nif err != nil {")
 		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read %s`)", typ)
+		fmt.Fprintf(dst, "\n}")
+		fmt.Fprintf(dst, "\n\nif code != %s.Byte() {", data.Code)
+		fmt.Fprintf(dst, "\nreturn errors.Errorf(`msgpack: expected %s, got %%s`, code)", data.Code)
 		fmt.Fprintf(dst, "\n}")
 		fmt.Fprintf(dst, "\n\n*v = math.Float%dfrombits(x)", data.Bits)
 		fmt.Fprintf(dst, "\nreturn nil")
