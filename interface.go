@@ -203,6 +203,10 @@ type Reader interface {
 	ReadUint16() (uint16, error)
 	ReadUint32() (uint32, error)
 	ReadUint64() (uint64, error)
+	ReadByteUint8() (byte, uint8, error)
+	ReadByteUint16() (byte, uint16, error)
+	ReadByteUint32() (byte, uint32, error)
+	ReadByteUint64() (byte, uint64, error)
 }
 
 // Encoder writes serialized data to a destination pointed to by
