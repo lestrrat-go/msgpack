@@ -58,6 +58,10 @@ type Encoder interface {
 	Encode(interface{}) error
 }
 
+type EncodeStringer interface {
+	EncodeString(string) error
+}
+
 type EncodeUinter interface {
 	EncodeUint(uint) error
 }
@@ -397,6 +401,32 @@ func BenchmarkEncodeInt64(b *testing.B) {
 	}
 }
 
+func BenchmarkEncodeString(b *testing.B) {
+	for _, data := range encoders {
+		for _, size := range []int{math.MaxUint8, math.MaxUint8 + 1, math.MaxUint16 + 1} {
+			s := makeString(size)
+			if enc, ok := data.Encoder.(Encoder); ok {
+				b.Run(fmt.Sprintf("%s/encode string (%d bytes) via Encode()", data.Name, size), func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
+						if err := enc.Encode(s); err != nil {
+							panic(err)
+						}
+					}
+				})
+			}
+			if enc, ok := data.Encoder.(EncodeStringer); ok {
+				b.Run(fmt.Sprintf("%s/encode string (%d bytes) via EncodeString()", data.Name, size), func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
+						if err := enc.EncodeString(s); err != nil {
+							panic(err)
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
 func BenchmarkDecodeUint8(b *testing.B) {
 	for _, data := range encoders {
 		canary := data.MakeDecoder(&bytes.Buffer{})
@@ -526,15 +556,16 @@ func BenchmarkDecodeUint32(b *testing.B) {
 
 func BenchmarkDecodeUint64(b *testing.B) {
 	for _, data := range encoders {
-		canary := data.MakeDecoder(&bytes.Buffer{})
 		serialized := make([]byte, 9)
 		serialized[0] = lestrrat.Uint64.Byte()
 		binary.BigEndian.PutUint64(serialized[1:], math.MaxUint64)
 		rdr := bytes.NewReader(serialized)
-		if _, ok := canary.(DecodeUint64er); ok {
+		canary := data.MakeDecoder(rdr)
+
+		switch dec := canary.(type) {
+		case DecodeUint64er:
 			b.Run(fmt.Sprintf("%s/decode uint64 via DecodeUint64()", data.Name), func(b *testing.B) {
 				var v uint64
-				dec := data.MakeDecoder(rdr).(DecodeUint64er)
 				for i := 0; i < b.N; i++ {
 					b.StopTimer()
 					rdr.Seek(0, 0)
@@ -547,9 +578,8 @@ func BenchmarkDecodeUint64(b *testing.B) {
 					}
 				}
 			})
-		} else if _, ok := canary.(DecodeUint64Returner); ok {
+		case DecodeUint64Returner:
 			b.Run(fmt.Sprintf("%s/decode uint64 via DecodeUint64() (return)", data.Name), func(b *testing.B) {
-				dec := data.MakeDecoder(rdr).(DecodeUint64Returner)
 				for i := 0; i < b.N; i++ {
 					b.StopTimer()
 					rdr.Seek(0, 0)
@@ -563,6 +593,8 @@ func BenchmarkDecodeUint64(b *testing.B) {
 					}
 				}
 			})
+		default:
+			panic("couldn't figure out type")
 		}
 	}
 }
