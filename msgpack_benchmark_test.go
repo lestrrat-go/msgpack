@@ -376,6 +376,30 @@ func BenchmarkEncodeInt8(b *testing.B) {
 	}
 }
 
+func BenchmarkEncodeInt8FixNum(b *testing.B) {
+	var v int8 = -31
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/int8 via Encode()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeInt8er); ok {
+			b.Run(fmt.Sprintf("%s/int8 via EncodeInt8()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeInt8(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkEncodeInt16(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
@@ -479,7 +503,7 @@ func BenchmarkEncodeString(b *testing.B) {
 
 type PatternReader struct {
 	pattern []byte
-	pos int
+	pos     int
 }
 
 func NewPatternReader(b []byte) *PatternReader {
@@ -637,6 +661,40 @@ func BenchmarkDecodeUint64(b *testing.B) {
 			})
 		default:
 			panic("couldn't figure out type")
+		}
+	}
+}
+
+func BenchmarkDecodeInt8FixNum(b *testing.B) {
+	for _, data := range encoders {
+		canary := data.MakeDecoder(&bytes.Buffer{})
+		rdr := NewPatternReader([]byte{0x7f})
+		if _, ok := canary.(DecodeInt8er); ok {
+			b.Run(fmt.Sprintf("%s/int8 via DecodeInt8()", data.Name), func(b *testing.B) {
+				var v int8
+				dec := data.MakeDecoder(rdr).(DecodeInt8er)
+				for i := 0; i < b.N; i++ {
+					if err := dec.DecodeInt8(&v); err != nil {
+						panic(err)
+					}
+					if v != math.MaxInt8 {
+						panic("v should be math.MaxInt :/")
+					}
+				}
+			})
+		} else if _, ok := canary.(DecodeInt8Returner); ok {
+			b.Run(fmt.Sprintf("%s/int8 via DecodeInt8() (return)", data.Name), func(b *testing.B) {
+				dec := data.MakeDecoder(rdr).(DecodeInt8Returner)
+				for i := 0; i < b.N; i++ {
+					v, err := dec.DecodeInt8()
+					if err != nil {
+						panic(err)
+					}
+					if v != math.MaxInt8 {
+						panic("v should be math.MaxInt :/")
+					}
+				}
+			})
 		}
 	}
 }
@@ -857,4 +915,3 @@ func BenchmarkDecodeFloat64(b *testing.B) {
 		}
 	}
 }
-
