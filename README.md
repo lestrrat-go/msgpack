@@ -157,6 +157,8 @@ func ExampleFluentdMessage() {
   // OUTPUT:
   // foo 2009-02-13 23:31:30.000000123 +0000 UTC map[count:1000] <nil>
 }
+```
+
 # STATUS
 
 * Requires more testing for array/map/struct types
