@@ -317,6 +317,44 @@ func TestEncodeUint64(t *testing.T) {
 	})
 }
 
+func TestEncodePositiveFixNum(t *testing.T) {
+	for i := 0; i < 127; i++ {
+		t.Run(fmt.Sprintf("encode %d should result in fix num", i), func(t *testing.T) {
+			b, err := msgpack.Marshal(uint(i))
+			if !assert.NoError(t, err, `msgpack.Marshal should succeed`) {
+				return
+			}
+
+			if !assert.Len(t, b, 1, "encoded number should be 1 byte") {
+				return
+			}
+
+			if !assert.True(t, b[0] >= 0 && b[0] <= 127, "b should be 0 <= b <= 127") {
+				return
+			}
+		})
+	}
+}
+
+func TestEncodeNegativeFixNum(t *testing.T) {
+	for i := -1; i < 0; i++ {
+		t.Run(fmt.Sprintf("encode %d should result in fix num", i), func(t *testing.T) {
+			b, err := msgpack.Marshal(int(i))
+			if !assert.NoError(t, err, `msgpack.Marshal should succeed`) {
+				return
+			}
+
+			if !assert.Len(t, b, 1, "encoded number should be 1 byte") {
+				return
+			}
+
+			if !assert.Equal(t, i, int(int8(b[0])), "b should be negative number") {
+				return
+			}
+		})
+	}
+}
+
 func TestEncodeInt8(t *testing.T) {
 	var v = int8(math.MaxInt8)
 	var e = []byte{msgpack.Int8.Byte(), byte(v)}
@@ -700,13 +738,13 @@ type testStruct struct {
 	Bar struct {
 		BarContent string `msgpack:"bar.content"`
 	} `msgpack:"bar"`
-	Baz string `msgpack:",omitempty"`
+	Baz  string `msgpack:",omitempty"`
 	Quux string `msgpack:"-"`
 }
 
 func TestEncodeStruct(t *testing.T) {
-	var v = testStruct {
-		Foo: 100,
+	var v = testStruct{
+		Foo:  100,
 		Quux: "quux",
 	}
 	v.Bar.BarContent = "Hello, World!"

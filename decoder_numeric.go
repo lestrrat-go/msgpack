@@ -8,126 +8,88 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Decoder) DecodeUint32(v *uint32) error {
-	code, x, err := d.src.ReadByteUint32()
-	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read uint32`)
-	}
-
-	if code != Uint32.Byte() {
-		return errors.Errorf(`msgpack: expected Uint32, got %s`, code)
-	}
-
-	*v = x
-	return nil
-}
-
 func (d *Decoder) DecodeInt(v *int) error {
-	code, x, err := d.src.ReadByteUint64()
+	code, err := d.src.ReadByte()
 	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read int`)
+		return errors.Wrap(err, `msgpack: failed to read code for Int64`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = int(code)
+		return nil
 	}
 
 	if code != Int64.Byte() {
 		return errors.Errorf(`msgpack: expected Int64, got %s`, code)
+	}
+	x, err := d.src.ReadUint64()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for int`)
 	}
 
 	*v = int(x)
 	return nil
 }
 
-func (d *Decoder) DecodeInt16(v *int16) error {
-	code, x, err := d.src.ReadByteUint16()
-	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read int16`)
-	}
-
-	if code != Int16.Byte() {
-		return errors.Errorf(`msgpack: expected Int16, got %s`, code)
-	}
-
-	*v = int16(x)
-	return nil
-}
-
-func (d *Decoder) DecodeUint16(v *uint16) error {
-	code, x, err := d.src.ReadByteUint16()
-	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read uint16`)
-	}
-
-	if code != Uint16.Byte() {
-		return errors.Errorf(`msgpack: expected Uint16, got %s`, code)
-	}
-
-	*v = x
-	return nil
-}
-
-func (d *Decoder) DecodeUint(v *uint) error {
-	code, x, err := d.src.ReadByteUint64()
-	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read uint`)
-	}
-
-	if code != Uint64.Byte() {
-		return errors.Errorf(`msgpack: expected Uint64, got %s`, code)
-	}
-
-	*v = uint(x)
-	return nil
-}
-
-func (d *Decoder) DecodeUint8(v *uint8) error {
-	code, x, err := d.src.ReadByteUint8()
-	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read uint8`)
-	}
-
-	if code != Uint8.Byte() {
-		return errors.Errorf(`msgpack: expected Uint8, got %s`, code)
-	}
-
-	*v = x
-	return nil
-}
-
-func (d *Decoder) DecodeUint64(v *uint64) error {
-	code, x, err := d.src.ReadByteUint64()
-	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read uint64`)
-	}
-
-	if code != Uint64.Byte() {
-		return errors.Errorf(`msgpack: expected Uint64, got %s`, code)
-	}
-
-	*v = x
-	return nil
-}
-
 func (d *Decoder) DecodeInt8(v *int8) error {
-	code, x, err := d.src.ReadByteUint8()
+	code, err := d.src.ReadByte()
 	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read int8`)
+		return errors.Wrap(err, `msgpack: failed to read code for Int8`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = int8(code)
+		return nil
 	}
 
 	if code != Int8.Byte() {
 		return errors.Errorf(`msgpack: expected Int8, got %s`, code)
+	}
+	x, err := d.src.ReadUint8()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for int8`)
 	}
 
 	*v = int8(x)
 	return nil
 }
 
-func (d *Decoder) DecodeInt32(v *int32) error {
-	code, x, err := d.src.ReadByteUint32()
+func (d *Decoder) DecodeInt16(v *int16) error {
+	code, err := d.src.ReadByte()
 	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read int32`)
+		return errors.Wrap(err, `msgpack: failed to read code for Int16`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = int16(code)
+		return nil
+	}
+
+	if code != Int16.Byte() {
+		return errors.Errorf(`msgpack: expected Int16, got %s`, code)
+	}
+	x, err := d.src.ReadUint16()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for int16`)
+	}
+
+	*v = int16(x)
+	return nil
+}
+
+func (d *Decoder) DecodeInt32(v *int32) error {
+	code, err := d.src.ReadByte()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code for Int32`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = int32(code)
+		return nil
 	}
 
 	if code != Int32.Byte() {
 		return errors.Errorf(`msgpack: expected Int32, got %s`, code)
+	}
+	x, err := d.src.ReadUint32()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for int32`)
 	}
 
 	*v = int32(x)
@@ -135,16 +97,134 @@ func (d *Decoder) DecodeInt32(v *int32) error {
 }
 
 func (d *Decoder) DecodeInt64(v *int64) error {
-	code, x, err := d.src.ReadByteUint64()
+	code, err := d.src.ReadByte()
 	if err != nil {
-		return errors.Wrap(err, `msgpack: failed to read int64`)
+		return errors.Wrap(err, `msgpack: failed to read code for Int64`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = int64(code)
+		return nil
 	}
 
 	if code != Int64.Byte() {
 		return errors.Errorf(`msgpack: expected Int64, got %s`, code)
 	}
+	x, err := d.src.ReadUint64()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for int64`)
+	}
 
 	*v = int64(x)
+	return nil
+}
+
+func (d *Decoder) DecodeUint(v *uint) error {
+	code, err := d.src.ReadByte()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code for Uint64`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = uint(code)
+		return nil
+	}
+
+	if code != Uint64.Byte() {
+		return errors.Errorf(`msgpack: expected Uint64, got %s`, code)
+	}
+	x, err := d.src.ReadUint64()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for uint`)
+	}
+
+	*v = uint(x)
+	return nil
+}
+
+func (d *Decoder) DecodeUint8(v *uint8) error {
+	code, err := d.src.ReadByte()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code for Uint8`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = uint8(code)
+		return nil
+	}
+
+	if code != Uint8.Byte() {
+		return errors.Errorf(`msgpack: expected Uint8, got %s`, code)
+	}
+	x, err := d.src.ReadUint8()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for uint8`)
+	}
+
+	*v = x
+	return nil
+}
+
+func (d *Decoder) DecodeUint16(v *uint16) error {
+	code, err := d.src.ReadByte()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code for Uint16`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = uint16(code)
+		return nil
+	}
+
+	if code != Uint16.Byte() {
+		return errors.Errorf(`msgpack: expected Uint16, got %s`, code)
+	}
+	x, err := d.src.ReadUint16()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for uint16`)
+	}
+
+	*v = x
+	return nil
+}
+
+func (d *Decoder) DecodeUint32(v *uint32) error {
+	code, err := d.src.ReadByte()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code for Uint32`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = uint32(code)
+		return nil
+	}
+
+	if code != Uint32.Byte() {
+		return errors.Errorf(`msgpack: expected Uint32, got %s`, code)
+	}
+	x, err := d.src.ReadUint32()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for uint32`)
+	}
+
+	*v = x
+	return nil
+}
+
+func (d *Decoder) DecodeUint64(v *uint64) error {
+	code, err := d.src.ReadByte()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read code for Uint64`)
+	}
+	if IsFixNumFamily(Code(code)) {
+		*v = uint64(code)
+		return nil
+	}
+
+	if code != Uint64.Byte() {
+		return errors.Errorf(`msgpack: expected Uint64, got %s`, code)
+	}
+	x, err := d.src.ReadUint64()
+	if err != nil {
+		return errors.Wrap(err, `msgpack: failed to read payload for uint64`)
+	}
+
+	*v = x
 	return nil
 }
 

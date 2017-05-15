@@ -39,3 +39,19 @@ func IsExtFamily(c Code) bool {
 	return b == Ext8.Byte() || b == Ext16.Byte() || b == Ext32.Byte() ||
 		b == FixExt1.Byte() || b == FixExt2.Byte() || b == FixExt4.Byte() || b == FixExt8.Byte() || b == FixExt16.Byte()
 }
+
+func IsFixNumFamily(c Code) bool {
+	return IsPositiveFixNum(c) || IsNegativeFixNum(c)
+}
+
+func IsPositiveFixNum(c Code) bool {
+	b := c.Byte()
+	return b>>7 ==0
+}
+
+const negativeFixNumPrefix = 0xe0
+
+func IsNegativeFixNum(c Code) bool {
+	b := c.Byte()
+	return b&0xe0 == negativeFixNumPrefix
+}

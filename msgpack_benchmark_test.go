@@ -204,7 +204,7 @@ var encoders = []struct {
 func BenchmarkEncodeFloat32(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode float32 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/float32 via Encode()", data.Name), func(b *testing.B) {
 				var v float32 = math.MaxFloat32
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -214,7 +214,7 @@ func BenchmarkEncodeFloat32(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeFloat32er); ok {
-			b.Run(fmt.Sprintf("%s/encode float32 via EncodeFloat32()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/float32 via EncodeFloat32()", data.Name), func(b *testing.B) {
 				var v float32 = math.MaxFloat32
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeFloat32(v); err != nil {
@@ -229,7 +229,7 @@ func BenchmarkEncodeFloat32(b *testing.B) {
 func BenchmarkEncodeFloat64(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode float64 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/float64 via Encode()", data.Name), func(b *testing.B) {
 				var v float64 = math.MaxFloat64
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -239,7 +239,7 @@ func BenchmarkEncodeFloat64(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeFloat64er); ok {
-			b.Run(fmt.Sprintf("%s/encode float64 via EncodeFloat64()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/float64 via EncodeFloat64()", data.Name), func(b *testing.B) {
 				var v float64 = math.MaxFloat64
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeFloat64(v); err != nil {
@@ -254,7 +254,7 @@ func BenchmarkEncodeFloat64(b *testing.B) {
 func BenchmarkEncodeUint8(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode uint8 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint8 via Encode()", data.Name), func(b *testing.B) {
 				var v uint8 = math.MaxUint8
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -264,7 +264,7 @@ func BenchmarkEncodeUint8(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeUint8er); ok {
-			b.Run(fmt.Sprintf("%s/encode uint8 via EncodeUint8()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint8 via EncodeUint8()", data.Name), func(b *testing.B) {
 				var v uint8 = math.MaxUint8
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeUint8(v); err != nil {
@@ -279,7 +279,7 @@ func BenchmarkEncodeUint8(b *testing.B) {
 func BenchmarkEncodeUint16(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode uint16 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint16 via Encode()", data.Name), func(b *testing.B) {
 				var v uint16 = math.MaxUint16
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -289,7 +289,7 @@ func BenchmarkEncodeUint16(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeUint16er); ok {
-			b.Run(fmt.Sprintf("%s/encode uint16 via EncodeUint16()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint16 via EncodeUint16()", data.Name), func(b *testing.B) {
 				var v uint16 = math.MaxUint16
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeUint16(v); err != nil {
@@ -304,7 +304,7 @@ func BenchmarkEncodeUint16(b *testing.B) {
 func BenchmarkEncodeUint32(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode uint32 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint32 via Encode()", data.Name), func(b *testing.B) {
 				var v uint32 = math.MaxUint32
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -314,7 +314,7 @@ func BenchmarkEncodeUint32(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeUint32er); ok {
-			b.Run(fmt.Sprintf("%s/encode uint32 via EncodeUint32()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint32 via EncodeUint32()", data.Name), func(b *testing.B) {
 				var v uint32 = math.MaxUint32
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeUint32(v); err != nil {
@@ -329,7 +329,7 @@ func BenchmarkEncodeUint32(b *testing.B) {
 func BenchmarkEncodeUint64(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode uint64 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint64 via Encode()", data.Name), func(b *testing.B) {
 				var v uint64 = math.MaxUint64
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -339,7 +339,7 @@ func BenchmarkEncodeUint64(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeUint64er); ok {
-			b.Run(fmt.Sprintf("%s/encode uint64 via EncodeUint64()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint64 via EncodeUint64()", data.Name), func(b *testing.B) {
 				var v uint64 = math.MaxUint64
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeUint64(v); err != nil {
@@ -354,7 +354,7 @@ func BenchmarkEncodeUint64(b *testing.B) {
 func BenchmarkEncodeInt8(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode int8 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int8 via Encode()", data.Name), func(b *testing.B) {
 				var v int8 = math.MaxInt8
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -364,8 +364,32 @@ func BenchmarkEncodeInt8(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeInt8er); ok {
-			b.Run(fmt.Sprintf("%s/encode int8 via EncodeInt8()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int8 via EncodeInt8()", data.Name), func(b *testing.B) {
 				var v int8 = math.MaxInt8
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeInt8(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEncodeInt8FixNum(b *testing.B) {
+	var v int8 = -31
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/int8 via Encode()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(v); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeInt8er); ok {
+			b.Run(fmt.Sprintf("%s/int8 via EncodeInt8()", data.Name), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeInt8(v); err != nil {
 						panic(err)
@@ -379,7 +403,7 @@ func BenchmarkEncodeInt8(b *testing.B) {
 func BenchmarkEncodeInt16(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode int16 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int16 via Encode()", data.Name), func(b *testing.B) {
 				var v int16 = math.MaxInt16
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -389,7 +413,7 @@ func BenchmarkEncodeInt16(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeInt16er); ok {
-			b.Run(fmt.Sprintf("%s/encode int16 via EncodeInt16()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int16 via EncodeInt16()", data.Name), func(b *testing.B) {
 				var v int16 = math.MaxInt16
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeInt16(v); err != nil {
@@ -404,7 +428,7 @@ func BenchmarkEncodeInt16(b *testing.B) {
 func BenchmarkEncodeInt32(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode int32 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int32 via Encode()", data.Name), func(b *testing.B) {
 				var v int32 = math.MaxInt32
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -414,7 +438,7 @@ func BenchmarkEncodeInt32(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeInt32er); ok {
-			b.Run(fmt.Sprintf("%s/encode int32 via EncodeInt32()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int32 via EncodeInt32()", data.Name), func(b *testing.B) {
 				var v int32 = math.MaxInt32
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeInt32(v); err != nil {
@@ -429,7 +453,7 @@ func BenchmarkEncodeInt32(b *testing.B) {
 func BenchmarkEncodeInt64(b *testing.B) {
 	for _, data := range encoders {
 		if enc, ok := data.Encoder.(Encoder); ok {
-			b.Run(fmt.Sprintf("%s/encode int64 via Encode()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int64 via Encode()", data.Name), func(b *testing.B) {
 				var v int64 = math.MaxInt64
 				for i := 0; i < b.N; i++ {
 					if err := enc.Encode(v); err != nil {
@@ -439,7 +463,7 @@ func BenchmarkEncodeInt64(b *testing.B) {
 			})
 		}
 		if enc, ok := data.Encoder.(EncodeInt64er); ok {
-			b.Run(fmt.Sprintf("%s/encode int64 via EncodeInt64()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int64 via EncodeInt64()", data.Name), func(b *testing.B) {
 				var v int64 = math.MaxInt64
 				for i := 0; i < b.N; i++ {
 					if err := enc.EncodeInt64(v); err != nil {
@@ -456,7 +480,7 @@ func BenchmarkEncodeString(b *testing.B) {
 		for _, size := range []int{math.MaxUint8, math.MaxUint8 + 1, math.MaxUint16 + 1} {
 			s := makeString(size)
 			if enc, ok := data.Encoder.(Encoder); ok {
-				b.Run(fmt.Sprintf("%s/encode string (%d bytes) via Encode()", data.Name, size), func(b *testing.B) {
+				b.Run(fmt.Sprintf("%s/string (%d bytes) via Encode()", data.Name, size), func(b *testing.B) {
 					for i := 0; i < b.N; i++ {
 						if err := enc.Encode(s); err != nil {
 							panic(err)
@@ -465,7 +489,7 @@ func BenchmarkEncodeString(b *testing.B) {
 				})
 			}
 			if enc, ok := data.Encoder.(EncodeStringer); ok {
-				b.Run(fmt.Sprintf("%s/encode string (%d bytes) via EncodeString()", data.Name, size), func(b *testing.B) {
+				b.Run(fmt.Sprintf("%s/string (%d bytes) via EncodeString()", data.Name, size), func(b *testing.B) {
 					for i := 0; i < b.N; i++ {
 						if err := enc.EncodeString(s); err != nil {
 							panic(err)
@@ -479,7 +503,7 @@ func BenchmarkEncodeString(b *testing.B) {
 
 type PatternReader struct {
 	pattern []byte
-	pos int
+	pos     int
 }
 
 func NewPatternReader(b []byte) *PatternReader {
@@ -503,7 +527,7 @@ func BenchmarkDecodeUint8(b *testing.B) {
 		rdr := NewPatternReader([]byte{lestrrat.Uint8.Byte(), byte(math.MaxUint8)})
 		canary := data.MakeDecoder(rdr)
 		if dec, ok := canary.(DecodeUint8er); ok {
-			b.Run(fmt.Sprintf("%s/decode uint8 via DecodeUint8()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint8 via DecodeUint8()", data.Name), func(b *testing.B) {
 				var v uint8
 				for i := 0; i < b.N; i++ {
 					if err := dec.DecodeUint8(&v); err != nil {
@@ -515,7 +539,7 @@ func BenchmarkDecodeUint8(b *testing.B) {
 				}
 			})
 		} else if dec, ok := canary.(DecodeUint8Returner); ok {
-			b.Run(fmt.Sprintf("%s/decode uint8 via DecodeUint8() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint8 via DecodeUint8() (return)", data.Name), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeUint8()
 					if err != nil {
@@ -538,7 +562,7 @@ func BenchmarkDecodeUint16(b *testing.B) {
 		rdr := NewPatternReader(serialized)
 		canary := data.MakeDecoder(rdr)
 		if dec, ok := canary.(DecodeUint16er); ok {
-			b.Run(fmt.Sprintf("%s/decode uint16 via DecodeUint16()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint16 via DecodeUint16()", data.Name), func(b *testing.B) {
 				var v uint16
 				for i := 0; i < b.N; i++ {
 					if err := dec.DecodeUint16(&v); err != nil {
@@ -550,7 +574,7 @@ func BenchmarkDecodeUint16(b *testing.B) {
 				}
 			})
 		} else if dec, ok := canary.(DecodeUint16Returner); ok {
-			b.Run(fmt.Sprintf("%s/decode uint16 via DecodeUint16() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint16 via DecodeUint16() (return)", data.Name), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeUint16()
 					if err != nil {
@@ -573,7 +597,7 @@ func BenchmarkDecodeUint32(b *testing.B) {
 		binary.BigEndian.PutUint32(serialized[1:], math.MaxUint32)
 		rdr := NewPatternReader(serialized)
 		if _, ok := canary.(DecodeUint32er); ok {
-			b.Run(fmt.Sprintf("%s/decode uint32 via DecodeUint32()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint32 via DecodeUint32()", data.Name), func(b *testing.B) {
 				var v uint32
 				dec := data.MakeDecoder(rdr).(DecodeUint32er)
 				for i := 0; i < b.N; i++ {
@@ -586,7 +610,7 @@ func BenchmarkDecodeUint32(b *testing.B) {
 				}
 			})
 		} else if _, ok := canary.(DecodeUint32Returner); ok {
-			b.Run(fmt.Sprintf("%s/decode uint32 via DecodeUint32() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint32 via DecodeUint32() (return)", data.Name), func(b *testing.B) {
 				dec := data.MakeDecoder(rdr).(DecodeUint32Returner)
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeUint32()
@@ -612,7 +636,7 @@ func BenchmarkDecodeUint64(b *testing.B) {
 
 		switch dec := canary.(type) {
 		case DecodeUint64er:
-			b.Run(fmt.Sprintf("%s/decode uint64 via DecodeUint64()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint64 via DecodeUint64()", data.Name), func(b *testing.B) {
 				var v uint64
 				for i := 0; i < b.N; i++ {
 					if err := dec.DecodeUint64(&v); err != nil {
@@ -624,7 +648,7 @@ func BenchmarkDecodeUint64(b *testing.B) {
 				}
 			})
 		case DecodeUint64Returner:
-			b.Run(fmt.Sprintf("%s/decode uint64 via DecodeUint64() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/uint64 via DecodeUint64() (return)", data.Name), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeUint64()
 					if err != nil {
@@ -641,12 +665,12 @@ func BenchmarkDecodeUint64(b *testing.B) {
 	}
 }
 
-func BenchmarkDecodeInt8(b *testing.B) {
+func BenchmarkDecodeInt8FixNum(b *testing.B) {
 	for _, data := range encoders {
 		canary := data.MakeDecoder(&bytes.Buffer{})
-		rdr := NewPatternReader([]byte{lestrrat.Int8.Byte(), byte(math.MaxInt8)})
+		rdr := NewPatternReader([]byte{0x7f})
 		if _, ok := canary.(DecodeInt8er); ok {
-			b.Run(fmt.Sprintf("%s/decode int8 via DecodeInt8()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int8 via DecodeInt8()", data.Name), func(b *testing.B) {
 				var v int8
 				dec := data.MakeDecoder(rdr).(DecodeInt8er)
 				for i := 0; i < b.N; i++ {
@@ -659,7 +683,41 @@ func BenchmarkDecodeInt8(b *testing.B) {
 				}
 			})
 		} else if _, ok := canary.(DecodeInt8Returner); ok {
-			b.Run(fmt.Sprintf("%s/decode int8 via DecodeInt8() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int8 via DecodeInt8() (return)", data.Name), func(b *testing.B) {
+				dec := data.MakeDecoder(rdr).(DecodeInt8Returner)
+				for i := 0; i < b.N; i++ {
+					v, err := dec.DecodeInt8()
+					if err != nil {
+						panic(err)
+					}
+					if v != math.MaxInt8 {
+						panic("v should be math.MaxInt :/")
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkDecodeInt8(b *testing.B) {
+	for _, data := range encoders {
+		canary := data.MakeDecoder(&bytes.Buffer{})
+		rdr := NewPatternReader([]byte{lestrrat.Int8.Byte(), byte(math.MaxInt8)})
+		if _, ok := canary.(DecodeInt8er); ok {
+			b.Run(fmt.Sprintf("%s/int8 via DecodeInt8()", data.Name), func(b *testing.B) {
+				var v int8
+				dec := data.MakeDecoder(rdr).(DecodeInt8er)
+				for i := 0; i < b.N; i++ {
+					if err := dec.DecodeInt8(&v); err != nil {
+						panic(err)
+					}
+					if v != math.MaxInt8 {
+						panic("v should be math.MaxInt :/")
+					}
+				}
+			})
+		} else if _, ok := canary.(DecodeInt8Returner); ok {
+			b.Run(fmt.Sprintf("%s/int8 via DecodeInt8() (return)", data.Name), func(b *testing.B) {
 				dec := data.MakeDecoder(rdr).(DecodeInt8Returner)
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeInt8()
@@ -683,7 +741,7 @@ func BenchmarkDecodeInt16(b *testing.B) {
 		binary.BigEndian.PutUint16(serialized[1:], math.MaxInt16)
 		rdr := NewPatternReader(serialized)
 		if _, ok := canary.(DecodeInt16er); ok {
-			b.Run(fmt.Sprintf("%s/decode int16 via DecodeInt16()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int16 via DecodeInt16()", data.Name), func(b *testing.B) {
 				var v int16
 				dec := data.MakeDecoder(rdr).(DecodeInt16er)
 				for i := 0; i < b.N; i++ {
@@ -696,7 +754,7 @@ func BenchmarkDecodeInt16(b *testing.B) {
 				}
 			})
 		} else if _, ok := canary.(DecodeInt16Returner); ok {
-			b.Run(fmt.Sprintf("%s/decode int16 via DecodeInt16() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int16 via DecodeInt16() (return)", data.Name), func(b *testing.B) {
 				dec := data.MakeDecoder(rdr).(DecodeInt16Returner)
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeInt16()
@@ -720,7 +778,7 @@ func BenchmarkDecodeInt32(b *testing.B) {
 		binary.BigEndian.PutUint32(serialized[1:], math.MaxInt32)
 		rdr := NewPatternReader(serialized)
 		if _, ok := canary.(DecodeInt32er); ok {
-			b.Run(fmt.Sprintf("%s/decode int32 via DecodeInt32()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int32 via DecodeInt32()", data.Name), func(b *testing.B) {
 				var v int32
 				dec := data.MakeDecoder(rdr).(DecodeInt32er)
 				for i := 0; i < b.N; i++ {
@@ -733,7 +791,7 @@ func BenchmarkDecodeInt32(b *testing.B) {
 				}
 			})
 		} else if _, ok := canary.(DecodeInt32Returner); ok {
-			b.Run(fmt.Sprintf("%s/decode int32 via DecodeInt32() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int32 via DecodeInt32() (return)", data.Name), func(b *testing.B) {
 				dec := data.MakeDecoder(rdr).(DecodeInt32Returner)
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeInt32()
@@ -759,7 +817,7 @@ func BenchmarkDecodeInt64(b *testing.B) {
 
 		switch dec := canary.(type) {
 		case DecodeInt64er:
-			b.Run(fmt.Sprintf("%s/decode int64 via DecodeInt64()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int64 via DecodeInt64()", data.Name), func(b *testing.B) {
 				var v int64
 				for i := 0; i < b.N; i++ {
 					if err := dec.DecodeInt64(&v); err != nil {
@@ -771,7 +829,7 @@ func BenchmarkDecodeInt64(b *testing.B) {
 				}
 			})
 		case DecodeInt64Returner:
-			b.Run(fmt.Sprintf("%s/decode int64 via DecodeInt64() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/int64 via DecodeInt64() (return)", data.Name), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeInt64()
 					if err != nil {
@@ -796,7 +854,7 @@ func BenchmarkDecodeFloat32(b *testing.B) {
 		rdr := NewPatternReader(serialized)
 		canary := data.MakeDecoder(rdr)
 		if dec, ok := canary.(DecodeFloat32er); ok {
-			b.Run(fmt.Sprintf("%s/decode float32 via DecodeFloat32()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/float32 via DecodeFloat32()", data.Name), func(b *testing.B) {
 				var v float32
 				for i := 0; i < b.N; i++ {
 					if err := dec.DecodeFloat32(&v); err != nil {
@@ -808,7 +866,7 @@ func BenchmarkDecodeFloat32(b *testing.B) {
 				}
 			})
 		} else if dec, ok := canary.(DecodeFloat32Returner); ok {
-			b.Run(fmt.Sprintf("%s/decode float32 via DecodeFloat32() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/float32 via DecodeFloat32() (return)", data.Name), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeFloat32()
 					if err != nil {
@@ -831,7 +889,7 @@ func BenchmarkDecodeFloat64(b *testing.B) {
 		rdr := NewPatternReader(serialized)
 		canary := data.MakeDecoder(rdr)
 		if dec, ok := canary.(DecodeFloat64er); ok {
-			b.Run(fmt.Sprintf("%s/decode float64 via DecodeFloat64()", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/float64 via DecodeFloat64()", data.Name), func(b *testing.B) {
 				var v float64
 				for i := 0; i < b.N; i++ {
 					if err := dec.DecodeFloat64(&v); err != nil {
@@ -843,7 +901,7 @@ func BenchmarkDecodeFloat64(b *testing.B) {
 				}
 			})
 		} else if dec, ok := canary.(DecodeFloat64Returner); ok {
-			b.Run(fmt.Sprintf("%s/decode float64 via DecodeFloat64() (return)", data.Name), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s/float64 via DecodeFloat64() (return)", data.Name), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					v, err := dec.DecodeFloat64()
 					if err != nil {
@@ -857,4 +915,3 @@ func BenchmarkDecodeFloat64(b *testing.B) {
 		}
 	}
 }
-

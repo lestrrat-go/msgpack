@@ -1,6 +1,7 @@
 package msgpack
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"reflect"
@@ -29,6 +30,14 @@ func NewEncoder(w io.Writer) *Encoder {
 	}
 }
 
+func inPositiveFixNumRange(i int64) bool {
+	return i >= 0 && i <= 127
+}
+
+func inNegativeFixNumRange(i int64) bool {
+	return i >= -31 && i <= -1
+}
+
 func isExtType(t reflect.Type) (int, bool) {
 	muExtEncode.RLock()
 	typ, ok := extEncodeRegistry[t]
@@ -45,8 +54,6 @@ var encodeMsgpackerType = reflect.TypeOf((*EncodeMsgpacker)(nil)).Elem()
 func isEncodeMsgpacker(t reflect.Type) bool {
 	return t.Implements(encodeMsgpackerType)
 }
-
-var byteType = reflect.TypeOf(byte(0))
 
 func (e *Encoder) Encode(v interface{}) error {
 	switch v := v.(type) {
@@ -121,6 +128,14 @@ INDIRECT:
 	return errors.Errorf(`msgpack: encode unimplemented for type %s`, rv.Type())
 }
 
+func (e *Encoder) encodePositiveFixNum(i uint8) error {
+	return e.dst.WriteByte(byte(i))
+}
+
+func (e *Encoder) encodeNegativeFixNum(i int8) error {
+	return e.dst.WriteByte(byte(i))
+}
+
 func (e *Encoder) EncodeNil() error {
 	return e.dst.WriteByte(Nil.Byte())
 }
@@ -135,72 +150,26 @@ func (e *Encoder) EncodeBool(b bool) error {
 	return e.dst.WriteByte(code.Byte())
 }
 
-func (e *Encoder) EncodeFloat32(f float32) error {
-	if err := e.dst.WriteByteUint32(Float.Byte(), math.Float32bits(f)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Float`)
+func (e *Encoder) EncodePositiveFixNum(i uint8) error {
+	panic(fmt.Sprintf("fuck fixnum i = %d, max = %d", i, uint8(MaxPositiveFixNum)))
+
+	if i > uint8(MaxPositiveFixNum) || i < 0 {
+		return errors.Errorf(`msgpack: value %d is not in range for positive FixNum (127 >= x >= 0)`, i)
+	}
+
+	if err := e.dst.WriteByte(byte(i)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write FixNum`)
 	}
 	return nil
 }
 
-func (e *Encoder) EncodeFloat64(f float64) error {
-	if err := e.dst.WriteByteUint64(Double.Byte(), math.Float64bits(f)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Double`)
+func (e *Encoder) EncodeNegativeFixNum(i int8) error {
+	if i < -31 || i >= 0 {
+		return errors.Errorf(`msgpack: value %d is not in range for positive FixNum (0 > x >= -31)`, i)
 	}
-	return nil
-}
 
-func (e *Encoder) EncodeUint8(i uint8) error {
-	if err := e.dst.WriteByteUint8(Uint8.Byte(), i); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint8`)
-	}
-	return nil
-}
-
-func (e *Encoder) EncodeUint16(i uint16) error {
-	if err := e.dst.WriteByteUint16(Uint16.Byte(), i); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint16`)
-	}
-	return nil
-}
-
-func (e *Encoder) EncodeUint32(i uint32) error {
-	if err := e.dst.WriteByteUint32(Uint32.Byte(), i); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint32`)
-	}
-	return nil
-}
-
-func (e *Encoder) EncodeUint64(i uint64) error {
-	if err := e.dst.WriteByteUint64(Uint64.Byte(), i); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Uint64`)
-	}
-	return nil
-}
-
-func (e *Encoder) EncodeInt8(i int8) error {
-	if err := e.dst.WriteByteUint8(Int8.Byte(), uint8(i)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int8`)
-	}
-	return nil
-}
-
-func (e *Encoder) EncodeInt16(i int16) error {
-	if err := e.dst.WriteByteUint16(Int16.Byte(), uint16(i)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int16`)
-	}
-	return nil
-}
-
-func (e *Encoder) EncodeInt32(i int32) error {
-	if err := e.dst.WriteByteUint32(Int32.Byte(), uint32(i)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int32`)
-	}
-	return nil
-}
-
-func (e *Encoder) EncodeInt64(i int64) error {
-	if err := e.dst.WriteByteUint64(Int64.Byte(), uint64(i)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write Int64`)
+	if err := e.dst.WriteByte(byte(i)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write FixNum`)
 	}
 	return nil
 }
