@@ -463,6 +463,8 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 	switch {
 	case IsExtFamily(code):
 		return d.decodeExt()
+	case IsFixNumFamily(code):
+		return int8(code), nil
 	case code == Nil:
 		// Optimization: doesn't require any more handling than to
 		// throw away the code

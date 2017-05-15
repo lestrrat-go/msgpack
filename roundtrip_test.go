@@ -11,6 +11,8 @@ import (
 
 func TestRoundTrip(t *testing.T) {
 	var list = []interface{}{
+		int8(-31),
+		int8(127),
 		int8(math.MaxInt8),
 		int16(math.MaxInt16),
 		int32(math.MaxInt32),
