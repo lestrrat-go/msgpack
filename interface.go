@@ -6,13 +6,15 @@ import (
 	"reflect"
 )
 
+const MaxPositiveFixNum = byte(0x7f)
+const MinNegativeFixNum = byte(0xe0)
+
 // Code represents the first by in a msgpack element. It tell us
 // the data layout that follows it
 type Code byte
 
 const (
 	InvalidCode     Code = 0
-	FixedStrMask    Code = 0x1f
 	FixNum0         Code = 0x00
 	FixNum1         Code = 0x01
 	PosFixedNumHigh Code = 0x7f
