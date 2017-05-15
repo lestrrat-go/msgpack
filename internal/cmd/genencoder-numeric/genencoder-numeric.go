@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"sort"
 
 	"github.com/lestrrat/go-msgpack/internal/util"
 	"github.com/pkg/errors"
@@ -86,7 +87,15 @@ func generateIntegerTypes(dst io.Writer) error {
 		reflect.Uint64: {Code: "Uint64", Bits: 64},
 	}
 
-	for typ, data := range types {
+	keys := make([]reflect.Kind, 0, len(types))
+	for k := range types {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return uint(keys[i]) < uint(keys[j])
+	})
+	for _, typ := range keys {
+		data := types[typ]
 		fmt.Fprintf(dst, "\n\nfunc (e *Encoder) Encode%s(v %s) error {", util.Ucfirst(typ.String()), typ)
 		switch typ {
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -128,7 +137,15 @@ func generateFloatTypes(dst io.Writer) error {
 		reflect.Float64: {Code: "Double", Bits: 64},
 	}
 
-	for _, data := range types {
+	keys := make([]reflect.Kind, 0, len(types))
+	for k := range types {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return uint(keys[i]) < uint(keys[j])
+	})
+	for _, typ := range keys {
+		data := types[typ]
 		fmt.Fprintf(dst, "\n\nfunc (e *Encoder) EncodeFloat%d(f float%d) error {", data.Bits, data.Bits)
 		fmt.Fprintf(dst, "\nif err := e.dst.WriteByteUint%d(%s.Byte(), math.Float%dbits(f)); err != nil {", data.Bits, data.Code, data.Bits)
 		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to write %s`)", data.Code)

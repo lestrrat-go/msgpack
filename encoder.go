@@ -55,8 +55,6 @@ func isEncodeMsgpacker(t reflect.Type) bool {
 	return t.Implements(encodeMsgpackerType)
 }
 
-var byteType = reflect.TypeOf(byte(0))
-
 func (e *Encoder) Encode(v interface{}) error {
 	switch v := v.(type) {
 	case string:

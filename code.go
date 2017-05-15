@@ -49,10 +49,7 @@ func IsPositiveFixNum(c Code) bool {
 	return b>>7 ==0
 }
 
-const (
-	first3 = 0xe0
-	negativeFixNumPrefix = 0xe0
-)
+const negativeFixNumPrefix = 0xe0
 
 func IsNegativeFixNum(c Code) bool {
 	b := c.Byte()

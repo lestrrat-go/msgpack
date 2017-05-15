@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"sort"
 
 	"github.com/lestrrat/go-msgpack/internal/util"
 	"github.com/pkg/errors"
@@ -48,7 +49,7 @@ func generateNumericDecoders() error {
 
 	formatted, err := format.Source(buf.Bytes())
 	if err != nil {
-		fmt.Println(buf.Bytes())
+		fmt.Println(buf.String())
 		return err
 	}
 
@@ -87,7 +88,15 @@ func generateIntegerTypes(dst io.Writer) error {
 		reflect.Uint64: {Code: "Uint64", Bits: 64},
 	}
 
-	for typ, data := range types {
+	keys := make([]reflect.Kind, 0, len(types))
+	for k := range types {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return uint(keys[i]) < uint(keys[j])
+	})
+	for _, typ := range keys {
+		data := types[typ]
 		fmt.Fprintf(dst, "\n\nfunc (d *Decoder) Decode%s(v *%s) error {", util.Ucfirst(typ.String()), typ)
 		fmt.Fprintf(dst, "\ncode, err := d.src.ReadByte()")
 		fmt.Fprintf(dst, "\nif err != nil {")
@@ -125,7 +134,15 @@ func generateFloatTypes(dst io.Writer) error {
 		reflect.Float64: {Code: "Double", Bits: 64},
 	}
 
-	for typ, data := range types {
+	keys := make([]reflect.Kind, 0, len(types))
+	for k := range types {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return uint(keys[i]) < uint(keys[j])
+	})
+	for _, typ := range keys {
+		data := types[typ]
 		fmt.Fprintf(dst, "\n\nfunc (d *Decoder) Decode%s(v *%s) error {", util.Ucfirst(typ.String()), typ)
 		fmt.Fprintf(dst, "\ncode, x, err := d.src.ReadByteUint%d()", data.Bits)
 		fmt.Fprintf(dst, "\nif err != nil {")
