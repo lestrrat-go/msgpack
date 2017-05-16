@@ -356,12 +356,6 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 // For maps and arrays, we can only accept `interface{}`, or `[]interface{}`
 // and `map[string]interface{}` as our argument.
 func (d *Decoder) Decode(v interface{}) error {
-	// If we know this object does its own decoding, we bypass everything
-	// and just let it handle itself
-	if dm, ok := v.(DecodeMsgpacker); ok {
-		return dm.DecodeMsgpack(d)
-	}
-
 	rv := reflect.ValueOf(v)
 	// The result of decoding must be assigned to v, and v
 	// should be a pointer
@@ -374,11 +368,6 @@ func (d *Decoder) Decode(v interface{}) error {
 		return &InvalidDecodeError{
 			Type: typ,
 		}
-	}
-
-	// Is this object a DecodeMsgpackExt?
-	if _, ok := v.(DecodeMsgpackExter); ok {
-		goto FromCode
 	}
 
 	// First, try guessing what to do by checking the type of the
@@ -416,6 +405,12 @@ func (d *Decoder) Decode(v interface{}) error {
 		return d.DecodeArray(v)
 	case *map[string]interface{}:
 		return d.DecodeMap(v)
+	case DecodeMsgpacker:
+		// If we know this object does its own decoding, we bypass everything
+		// and just let it handle itself
+		return v.DecodeMsgpack(d)
+	case DecodeMsgpackExter:
+		goto FromCode
 	}
 
 	// Next up: try using reflect to find out the general family of

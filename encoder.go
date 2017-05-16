@@ -96,8 +96,9 @@ INDIRECT:
 		if !rv.IsValid() {
 			return e.EncodeNil()
 		}
-		if typ, ok := isExtType(rv.Type()); ok {
-			return e.EncodeExt(typ, rv.Interface().(EncodeMsgpackExter))
+
+		if _, ok := isExtType(rv.Type()); ok {
+			return e.EncodeExt(rv.Interface().(EncodeMsgpackExter))
 		}
 
 		if ok := isEncodeMsgpacker(rv.Type()); ok {
@@ -304,6 +305,10 @@ func (e *Encoder) EncodeArray(v interface{}) error {
 
 func (e *Encoder) EncodeMap(v interface{}) error {
 	rv := reflect.ValueOf(v)
+	if !rv.IsValid() {
+		return e.EncodeNil()
+	}
+
 	if rv.Kind() != reflect.Map {
 		return errors.Errorf(`msgpack: argument to EncodeMap must be a map (not %s)`, rv.Type())
 	}
@@ -378,6 +383,20 @@ func parseMsgpackTag(rv reflect.StructField) (string, bool) {
 
 func (e *Encoder) EncodeStruct(v interface{}) error {
 	rv := reflect.ValueOf(v)
+	if !rv.IsValid() {
+		return e.EncodeNil()
+	}
+
+	switch v := v.(type) {
+	case EncodeMsgpacker:
+		return v.EncodeMsgpack(e)
+	case EncodeMsgpackExter:
+		return e.EncodeExt(v)
+	}
+	if v, ok := v.(EncodeMsgpacker); ok {
+		return v.EncodeMsgpack(e)
+	}
+
 	if rv.Kind() != reflect.Struct {
 		return errors.Errorf(`msgpack: argument to EncodeStruct must be a struct (not %s)`, rv.Type())
 	}
@@ -411,7 +430,15 @@ func (e *Encoder) EncodeStruct(v interface{}) error {
 	return nil
 }
 
-func (e *Encoder) EncodeExt(typ int, v EncodeMsgpackExter) error {
+func (e *Encoder) EncodeExt(v EncodeMsgpackExter) error {
+	muExtDecode.RLock()
+	typ, ok := extEncodeRegistry[reflect.TypeOf(v)]
+	muExtDecode.RUnlock()
+
+	if !ok {
+		return errors.Errorf(`msgpack: type %s has not been registered as an extension`, reflect.TypeOf(v))
+	}
+
 	buf := bufferpool.Get()
 	defer bufferpool.Release(buf)
 
