@@ -5,6 +5,7 @@ import (
 	"io"
 	"reflect"
 
+	bufferpool "github.com/lestrrat/go-bufferpool"
 	"github.com/pkg/errors"
 )
 
@@ -154,8 +155,18 @@ func (d *Decoder) DecodeString(s *string) error {
 		return errors.Wrapf(err, `msgpack: invalid string length %d`, l)
 	}
 
-	b := make([]byte, l)
-	for x := b; len(x) > 0; {
+	// Read the contents of the string.
+	// Now, here's the tricky part: conversion from byte slice to string is
+	// just going to create a copy of b as an immutable string, and so this
+	// byte slice is just thrown away. It would be nice if we could reuse
+	// this memory later...
+	buf := bufferpool.Get()
+	defer bufferpool.Release(buf)
+
+	// Make sure we can write l bytes
+	buf.Grow(int(l))
+	b := buf.Bytes()
+	for x := b[:l]; len(x) > 0; {
 		n, err := d.raw.Read(x)
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read string`)
@@ -163,7 +174,7 @@ func (d *Decoder) DecodeString(s *string) error {
 		x = x[n:]
 	}
 
-	*s = string(b)
+	*s = string(b[:l])
 	return nil
 }
 
@@ -339,7 +350,11 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 
 // Decode takes a pointer to a variable, and populates it with the value
 // that was unmarshaled from the stream.
+//
 // If the variable is a non-pointer or nil, an error is returned.
+//
+// For maps and arrays, we can only accept `interface{}`, or `[]interface{}`
+// and `map[string]interface{}` as our argument.
 func (d *Decoder) Decode(v interface{}) error {
 	// If we know this object does its own decoding, we bypass everything
 	// and just let it handle itself
@@ -397,6 +412,10 @@ func (d *Decoder) Decode(v interface{}) error {
 		return d.DecodeFloat64(v)
 	case *string:
 		return d.DecodeString(v)
+	case *[]interface{}:
+		return d.DecodeArray(v)
+	case *map[string]interface{}:
+		return d.DecodeMap(v)
 	}
 
 	// Next up: try using reflect to find out the general family of
@@ -615,18 +634,18 @@ func (d *Decoder) decodeExt() (interface{}, error) {
 			return nil, errors.Wrap(err, `msgpack: failed to read size for ext8 value`)
 		}
 		payloadSize = int64(s)
-		case Ext16:
-			s, err := d.src.ReadUint16()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read size for ext16 value`)
-			}
-			payloadSize = int64(s)
-		case Ext32:
-			s, err := d.src.ReadUint32()
-			if err != nil {
-				return nil, errors.Wrap(err, `msgpack: failed to read size for ext32 value`)
-			}
-			payloadSize = int64(s)
+	case Ext16:
+		s, err := d.src.ReadUint16()
+		if err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to read size for ext16 value`)
+		}
+		payloadSize = int64(s)
+	case Ext32:
+		s, err := d.src.ReadUint32()
+		if err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to read size for ext32 value`)
+		}
+		payloadSize = int64(s)
 	}
 
 	// lookup the Go type from Msgpack type
