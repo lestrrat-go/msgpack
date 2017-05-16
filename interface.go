@@ -159,6 +159,7 @@ type DecodeMsgpackExter interface {
 // ArrayBuilder is used to build a msgpack array
 type ArrayBuilder interface {
 	Add(interface{})
+	Bytes() ([]byte, error)
 	Count() int
 	Encode(io.Writer) error
 	Reset()

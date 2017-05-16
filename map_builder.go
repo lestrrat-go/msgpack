@@ -34,7 +34,7 @@ func WriteMapHeader(dst io.Writer, c int) error {
 	if w, ok = dst.(Writer); !ok {
 		w = NewWriter(dst)
 	}
-	
+
 	switch {
 	case c < 16:
 		w.WriteByte(FixMap0.Byte() + byte(c))
@@ -54,11 +54,11 @@ func (b *mapBuilder) Encode(dst io.Writer) error {
 	WriteMapHeader(dst, b.Count())
 
 	e := NewEncoder(dst)
-	for i := 0; i < b.Count(); i += 2 {
-		if err := e.Encode(b.buffer[i]); err != nil {
+	for i := 0; i < b.Count(); i++ {
+		if err := e.Encode(b.buffer[i*2]); err != nil {
 			return errors.Wrapf(err, `map builder: failed to encode map key %s`, b.buffer[i])
 		}
-		if err := e.Encode(b.buffer[i+1]); err != nil {
+		if err := e.Encode(b.buffer[i*2+1]); err != nil {
 			return errors.Wrapf(err, `map builder: failed to encode map element for %s`, b.buffer[i])
 		}
 	}

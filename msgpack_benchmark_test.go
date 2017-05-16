@@ -19,6 +19,26 @@ type Decoder interface {
 	Decode(interface{}) error
 }
 
+type DecodeArrayer interface {
+	DecodeArray(*[]interface{}) error
+}
+
+type DecodeArrayReturner interface {
+	DecodeArray() ([]interface{}, error)
+}
+
+type DecodeMapper interface {
+	DecodeMap(*map[string]interface{}) error
+}
+
+type DecodeStringer interface {
+	DecodeString(*string) error
+}
+
+type DecodeStringReturner interface {
+	DecodeString() (string, error)
+}
+
 type DecodeUinter interface {
 	DecodeUint(*uint) error
 }
@@ -110,6 +130,14 @@ type Encoder interface {
 
 type EncodeStringer interface {
 	EncodeString(string) error
+}
+
+type EncodeMapper interface {
+	EncodeMap(interface{}) error
+}
+
+type EncodeArrayer interface {
+	EncodeArray(interface{}) error
 }
 
 type EncodeUinter interface {
@@ -497,6 +525,62 @@ func BenchmarkEncodeString(b *testing.B) {
 					}
 				})
 			}
+		}
+	}
+}
+
+func BenchmarkEncodeArray(b *testing.B) {
+	var a []int
+	for _, size := range []int{math.MaxUint8, math.MaxUint8, math.MaxUint16} {
+		a = append(a, size)
+	}
+
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/array via Encode()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(a); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeArrayer); ok {
+			b.Run(fmt.Sprintf("%s/array via EncodeArray()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeArray(a); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkEncodeMap(b *testing.B) {
+	var m = make(map[string]int)
+	for _, size := range []int{math.MaxUint8, math.MaxUint8, math.MaxUint16} {
+		m[fmt.Sprintf("%d", size)] = size
+	}
+
+	for _, data := range encoders {
+		if enc, ok := data.Encoder.(Encoder); ok {
+			b.Run(fmt.Sprintf("%s/map via Encode()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					if err := enc.Encode(m); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if enc, ok := data.Encoder.(EncodeMapper); ok {
+			b.Run(fmt.Sprintf("%s/map via EncodeMap()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					if err := enc.EncodeMap(m); err != nil {
+						panic(err)
+					}
+				}
+			})
 		}
 	}
 }
@@ -909,6 +993,137 @@ func BenchmarkDecodeFloat64(b *testing.B) {
 					}
 					if v != math.MaxFloat64 {
 						panic("v should be math.MaxFloat :/")
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkDecodeString(b *testing.B) {
+	var s = makeString(255)
+	for _, data := range encoders {
+		serialized, _ := lestrrat.Marshal(s)
+		rdr := NewPatternReader(serialized)
+		canary := data.MakeDecoder(rdr)
+		if dec, ok := canary.(Decoder); ok {
+			b.Run(fmt.Sprintf("%s/string via Decode()", data.Name), func(b *testing.B) {
+				var v string
+				for i := 0; i < b.N; i++ {
+					if err := dec.Decode(&v); err != nil {
+						panic(err)
+					}
+					if v != s {
+						panic("v should be s :/")
+					}
+				}
+			})
+		}
+		if dec, ok := canary.(DecodeStringer); ok {
+			b.Run(fmt.Sprintf("%s/string via DecodeString()", data.Name), func(b *testing.B) {
+				var v string
+				for i := 0; i < b.N; i++ {
+					if err := dec.DecodeString(&v); err != nil {
+						panic(err)
+					}
+					if v != s {
+						panic("v should be s :/")
+					}
+				}
+			})
+		} else if dec, ok := canary.(DecodeStringReturner); ok {
+			b.Run(fmt.Sprintf("%s/string via DecodeString() (return)", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					v, err := dec.DecodeString()
+					if err != nil {
+						panic(err)
+					}
+					if v != s {
+						panic("v should be s :/")
+					}
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkDecodeArray(b *testing.B) {
+	builder := lestrrat.NewArrayBuilder()
+	builder.Add(math.MaxUint8)
+	builder.Add(math.MaxUint16)
+	builder.Add(math.MaxUint32)
+	serialized, _ := builder.Bytes()
+	rdr := NewPatternReader(serialized)
+	for _, data := range encoders {
+		canary := data.MakeDecoder(rdr)
+		if dec, ok := canary.(Decoder); ok {
+			b.Run(fmt.Sprintf("%s/array via Decode() (concrete)", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					var a []interface{}
+					if err := dec.Decode(&a); err != nil {
+						panic(err)
+					}
+				}
+			})
+			b.Run(fmt.Sprintf("%s/array via Decode() (interface{})", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					var a interface{}
+					if err := dec.Decode(&a); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if dec, ok := canary.(DecodeArrayer); ok {
+			b.Run(fmt.Sprintf("%s/array via DecodeArray()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					var a []interface{}
+					if err := dec.DecodeArray(&a); err != nil {
+						panic(err)
+					}
+					_ = a
+				}
+			})
+		}
+		if dec, ok := canary.(DecodeArrayReturner); ok {
+			b.Run(fmt.Sprintf("%s/array via DecodeArray() (return)", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					a, err := dec.DecodeArray()
+					if err != nil {
+						panic(err)
+					}
+					_ = a
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkDecodeMap(b *testing.B) {
+	builder := lestrrat.NewMapBuilder()
+	builder.Add("uint8", math.MaxUint8)
+	builder.Add("uint16", math.MaxUint16)
+	builder.Add("uint32", math.MaxUint32)
+	serialized, _ := builder.Bytes()
+	for _, data := range encoders {
+		rdr := NewPatternReader(serialized)
+		canary := data.MakeDecoder(rdr)
+		if dec, ok := canary.(Decoder); ok {
+			b.Run(fmt.Sprintf("%s/map via Decode()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					var m map[string]interface{}
+					if err := dec.Decode(&m); err != nil {
+						panic(err)
+					}
+				}
+			})
+		}
+		if dec, ok := canary.(DecodeMapper); ok {
+			b.Run(fmt.Sprintf("%s/map via DecodeMap()", data.Name), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					var m map[string]interface{}
+					if err := dec.DecodeMap(&m); err != nil {
+						panic(err)
 					}
 				}
 			})

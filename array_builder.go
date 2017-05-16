@@ -1,6 +1,7 @@
 package msgpack
 
 import (
+	"bytes"
 	"io"
 	"math"
 	"reflect"
@@ -54,6 +55,14 @@ func (e arrayBuilder) Encode(dst io.Writer) error {
 		}
 	}
 	return nil
+}
+
+func (e arrayBuilder) Bytes() ([]byte, error) {
+	var buf bytes.Buffer
+	if err := e.Encode(&buf); err != nil {
+		return nil, errors.Wrap(err, `msgpack: failed to encode array`)
+	}
+	return buf.Bytes(), nil
 }
 
 func (e arrayBuilder) Count() int {
