@@ -182,6 +182,18 @@ should: So I wrote one for my own amusement and education.
 
 # FEATURES
 
+## API Compatibility With stdlib
+
+`github.com/vmihailenco/msgpack.v2`, which this library was initially
+based upon, has subtle differences with the stdlib. For example,
+`"github.com/vmihailenco/msgpack.v2".Decoder.Decode()` has a signature
+of `Decode(v ...interface{})`, which doesn't match with the signature
+in, for example, `encoding/json`. This subtle difference makes it hard
+to use interfaces to make swappable serializers.
+
+Also, all decoding API takes an argument to be assigned to instead of
+returning a value.
+
 ## Custom Serialization
 
 If you would like to customize serialization for a particular type,
