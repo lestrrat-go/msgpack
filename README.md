@@ -180,6 +180,33 @@ I realized that I didn't know enough about its internal workings to make
 suggestions of have confidence producing bug reports, and I really
 should: So I wrote one for my own amusement and education.
 
+# FEATURES
+
+## Custom Serialization
+
+If you would like to customize serialization for a particular type,
+you can create a type that implements the `msgpack.EncodeMsgpacker`
+and/or `msgpack.DecodeMsgpacker` interface.
+
+```go
+func (v *Object) EncodeMsgpack(e *msgpack.Encoder) error {
+  ...
+}
+
+func (v *Object) DecodeMsgpack(d *msgpack.Decoder) error {
+  ...
+}
+```
+
+## Low Level Writer/Reader
+
+In some rare cases, such as when you are creating extensions, you need
+a more fine grained control on what you read or write. For this, you may
+use the `msgpack.Writer` and `msgpack.Reader` objects.
+
+These objects know how to read or write bytes of data in the correct
+byte order.
+
 # PROS/CONS
 
 ## PROS
