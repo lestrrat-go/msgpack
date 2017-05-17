@@ -35,6 +35,7 @@ func (t *EventTime) DecodeMsgpack(d *msgpack.Decoder) error {
 }
 
 func (t EventTime) EncodeMsgpack(e *msgpack.Encoder) error {
+	w := e.Writer()
 	if err := w.WriteUint32(uint32(t.Unix())); err != nil {
 		return errors.Wrap(err, `failed to write EventTime seconds payload`)
 	}
