@@ -9,8 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var decodeMsgpackExterType = reflect.TypeOf((*DecodeMsgpackExter)(nil)).Elem()
-
 func NewDecoder(r io.Reader) *Decoder {
 	raw := bufio.NewReader(r)
 	return &Decoder{
@@ -295,7 +293,7 @@ func (d *Decoder) DecodeMap(v *map[string]interface{}) error {
 
 func (d *Decoder) DecodeStruct(v interface{}) error {
 	if v, ok := v.(DecodeMsgpacker); ok {
-		return v.DecodeMsgpack(d)
+		return d.DecodeExt(v)
 	}
 
 	var size int
@@ -313,7 +311,6 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 		rv.Set(reflect.Value{})
 		return nil
 	}
-
 
 	var rt = rv.Elem().Type()
 	// Find the fields
@@ -429,8 +426,6 @@ func (d *Decoder) Decode(v interface{}) error {
 		// If we know this object does its own decoding, we bypass everything
 		// and just let it handle itself
 		return v.DecodeMsgpack(d)
-	case DecodeMsgpackExter:
-		goto FromCode
 	}
 
 	// Next up: try using reflect to find out the general family of
@@ -496,7 +491,21 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 
 	switch {
 	case IsExtFamily(code):
-		return d.decodeExt()
+		var size int
+		if err := d.DecodeExtLength(&size); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to read extension sizes`)
+		}
+
+		var typ reflect.Type
+		if err := d.DecodeExtType(&typ); err != nil {
+			return nil, errors.Wrap(err, `msgpack: faied to read extension type`)
+		}
+
+		rv := reflect.New(typ).Interface().(DecodeMsgpacker)
+		if err := rv.DecodeMsgpack(d); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to decode extension`)
+		}
+		return rv, nil
 	case IsFixNumFamily(code):
 		return int8(code), nil
 	case code == Nil:
@@ -668,38 +677,41 @@ func (d *Decoder) DecodeExtLength(l *int) error {
 	return nil
 }
 
-func (d *Decoder) decodeExt() (interface{}, error) {
-	var l int
-	if err := d.DecodeExtLength(&l); err != nil {
-		return nil, errors.Wrap(err, `msgpack: failed to decode ext length`)
+func (d *Decoder) DecodeExt(v DecodeMsgpacker) error {
+	var size int
+	if err := d.DecodeExtLength(&size); err != nil {
+		return errors.Wrap(err, `msgpack: failed to read extension sizes`)
 	}
 
-	// lookup the Go type from Msgpack type
-	b, err := d.raw.ReadByte()
+	var typ reflect.Type
+	if err := d.DecodeExtType(&typ); err != nil {
+		return errors.Wrap(err, `msgpack: faied to read extension type`)
+	}
+
+	if rt := reflect.TypeOf(v); rt != reflect.PtrTo(typ) {
+		return errors.Errorf(`msgpack: extension should be %s, got %s`, typ, rt)
+	}
+
+	if err := v.DecodeMsgpack(d); err != nil {
+		return errors.Wrap(err, `msgpack: failed to call DecodeMsgpack`)
+	}
+	return nil
+}
+
+func (d *Decoder) DecodeExtType(v *reflect.Type) error {
+	t, err := d.src.ReadUint8()
 	if err != nil {
-		return nil, errors.Wrap(err, `msgpack: failed to read type byte`)
+		return errors.Wrap(err, `msgpack: failed to read type for extension`)
 	}
-	exttyp := int(b)
 
-	muExtDecode.RLock()
-	typ, ok := extDecodeRegistry[exttyp]
-	muExtDecode.RUnlock()
+	muExtDecode.Lock()
+	typ, ok := extDecodeRegistry[int(t)]
+	muExtDecode.Unlock()
 
 	if !ok {
-		return nil, errors.Wrapf(err, `msgpack: failed to lookup msgpack type %d`, exttyp)
+		return errors.Errorf(`msgpack: type %d is not registered as an extension`, int(t))
 	}
 
-	if reflect.PtrTo(typ).Implements(decodeMsgpackExterType) {
-		rv := reflect.New(typ).Interface().(DecodeMsgpackExter)
-		// At this point we delegate to the underlying object, but
-		// we should limit reading to the payload size
-
-		if err := rv.DecodeMsgpackExt(NewReader(io.LimitReader(d.raw, int64(l)))); err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to call DecodeMsgpackExt`)
-		}
-
-		return rv, nil
-	}
-
-	return nil, errors.Errorf(`msgpack: %s does not implement DecodeMsgpackExter`, typ)
+	*v = typ
+	return nil
 }
