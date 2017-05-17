@@ -48,8 +48,6 @@ func isExtType(t reflect.Type) (int, bool) {
 	return 0, false
 }
 
-var encodeMsgpackerType = reflect.TypeOf((*EncodeMsgpacker)(nil)).Elem()
-
 func isEncodeMsgpacker(t reflect.Type) bool {
 	return t.Implements(encodeMsgpackerType)
 }
@@ -449,9 +447,24 @@ func (e *Encoder) EncodeExtType(v EncodeMsgpacker) error {
 }
 
 func (e *Encoder) EncodeExt(v EncodeMsgpacker) error {
-	if err := v.EncodeMsgpack(e); err != nil {
+	w := newAppendingWriter(9)
+	elocal := NewEncoder(w)
+
+	if err := v.EncodeMsgpack(elocal); err != nil {
 		return errors.Wrapf(err, `msgpack: failed during call to EncodeMsgpack for %s`, reflect.TypeOf(v))
 	}
+
+	buf := w.Bytes()
+	e.EncodeExtHeader(len(buf))
+	e.EncodeExtType(v)
+	for b := buf; len(b) > 0; {
+		n, err := e.dst.Write(buf)
+		b = b[n:]
+		if err != nil {
+			return errors.Wrap(err, `msgpack: failed to write extension payload`)
+		}
+	}
+
 	return nil
 }
 

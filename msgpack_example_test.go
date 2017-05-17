@@ -19,33 +19,7 @@ func init() {
 }
 
 func (t *EventTime) DecodeMsgpack(d *msgpack.Decoder) error {
-	code, err := d.ReadCode()
-	if err != nil {
-		return errors.Wrap(err, `failed to read code`)
-	}
-
 	r := d.Reader()
-	switch code {
-	case msgpack.FixExt8:
-		// no op. we know we have 8 bytes
-	case msgpack.Ext8:
-		size, err := r.ReadUint8()
-		if err != nil {
-			return errors.Wrap(err, `failed to read ext8 length`)
-		}
-
-		if size != 8 {
-			return errors.Wrap(err, `expected 8 bytes payload`)
-		}
-	default:
-		return errors.Errorf(`invalid code %s`, code)
-	}
-
-	typ, err := r.ReadUint8()
-	if typ != 0 {
-		return errors.Errorf(`invalid ext type %d`, typ)
-	}
-
 	sec, err := r.ReadUint32()
 	if err != nil {
 		return errors.Wrap(err, `failed to read uint32 from first 4 bytes`)
@@ -61,10 +35,6 @@ func (t *EventTime) DecodeMsgpack(d *msgpack.Decoder) error {
 }
 
 func (t EventTime) EncodeMsgpack(e *msgpack.Encoder) error {
-	e.EncodeExtHeader(8)
-	e.EncodeExtType(t)
-
-	w := e.Writer()
 	if err := w.WriteUint32(uint32(t.Unix())); err != nil {
 		return errors.Wrap(err, `failed to write EventTime seconds payload`)
 	}
@@ -156,3 +126,21 @@ func ExampleFluentdMessage() {
 	// OUTPUT:
 	// foo 2009-02-13 23:31:30.000000123 +0000 UTC map[count:1000] map[]
 }
+
+func ExampleEventTime() {
+	var e1 = EventTime{Time: time.Unix(1234567890, 123).UTC()}
+
+	b, err := msgpack.Marshal(e1)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+
+	var e2 interface{}
+	if err := msgpack.Unmarshal(b, &e2); err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+	// OUTPUT:
+}
+

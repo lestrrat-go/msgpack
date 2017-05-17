@@ -133,29 +133,6 @@ type DecodeMsgpacker interface {
 	DecodeMsgpack(*Decoder) error
 }
 
-// EncodeMsgpackExter is an interface for those objects that provide
-// their own serialization, but for the `ext` family only.
-type EncodeMsgpackExter interface {
-	// EncodeMsgpackExt is responsible for generating the msgpack payload
-	// (no codes or types)
-	//
-	// In order for this method to be triggered, you must register the object
-	// globally using the `RegisterExt()` function.
-	EncodeMsgpackExt(Writer) error
-}
-
-// DecodeMsgpackExter is an interface for those objects that provide
-// their own deserialization, but for the `ext` family only.
-type DecodeMsgpackExter interface {
-	// DecodeMsgpackExt should read the necessary elements from the
-	// Reader, and populate the object accordingly. This method is
-	// responsible for knowing how many bytes more it can consume.
-	//
-	// In order for this method to be triggered, you must register the object
-	// globally using the `RegisterExt()` function.
-	DecodeMsgpackExt(Reader) error
-}
-
 // ArrayBuilder is used to build a msgpack array
 type ArrayBuilder interface {
 	Add(interface{})
