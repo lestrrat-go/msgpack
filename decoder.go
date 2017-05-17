@@ -19,6 +19,10 @@ func NewDecoder(r io.Reader) *Decoder {
 	}
 }
 
+func (d *Decoder) Reader() Reader {
+	return d.src
+}
+
 func (d *Decoder) ReadCode() (Code, error) {
 	b, err := d.raw.ReadByte()
 	if err != nil {
@@ -231,6 +235,11 @@ func (d *Decoder) DecodeMapLength(l *int) error {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
 
+	if code == Nil {
+		*l = -1
+		return nil
+	}
+
 	if code >= FixMap0 && code <= FixMap15 {
 		*l = int(code.Byte() - FixMap0.Byte())
 		return nil
@@ -262,6 +271,11 @@ func (d *Decoder) DecodeMap(v *map[string]interface{}) error {
 		return errors.Wrap(err, `msgpack: failed to decode map length`)
 	}
 
+	if size == -1 {
+		*v = nil
+		return nil
+	}
+
 	m := make(map[string]interface{})
 	for i := 0; i < size; i++ {
 		var s string
@@ -280,8 +294,8 @@ func (d *Decoder) DecodeMap(v *map[string]interface{}) error {
 }
 
 func (d *Decoder) DecodeStruct(v interface{}) error {
-	if _, ok := v.(DecodeMsgpackExter); ok {
-		return d.Decode(v)
+	if v, ok := v.(DecodeMsgpacker); ok {
+		return v.DecodeMsgpack(d)
 	}
 
 	var size int
@@ -294,6 +308,12 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
 		return errors.New(`msgpack: expected pointer to struct`)
 	}
+
+	if size == -1 {
+		rv.Set(reflect.Value{})
+		return nil
+	}
+
 
 	var rt = rv.Elem().Type()
 	// Find the fields
@@ -356,12 +376,6 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 // For maps and arrays, we can only accept `interface{}`, or `[]interface{}`
 // and `map[string]interface{}` as our argument.
 func (d *Decoder) Decode(v interface{}) error {
-	// If we know this object does its own decoding, we bypass everything
-	// and just let it handle itself
-	if dm, ok := v.(DecodeMsgpacker); ok {
-		return dm.DecodeMsgpack(d)
-	}
-
 	rv := reflect.ValueOf(v)
 	// The result of decoding must be assigned to v, and v
 	// should be a pointer
@@ -374,11 +388,6 @@ func (d *Decoder) Decode(v interface{}) error {
 		return &InvalidDecodeError{
 			Type: typ,
 		}
-	}
-
-	// Is this object a DecodeMsgpackExt?
-	if _, ok := v.(DecodeMsgpackExter); ok {
-		goto FromCode
 	}
 
 	// First, try guessing what to do by checking the type of the
@@ -416,6 +425,12 @@ func (d *Decoder) Decode(v interface{}) error {
 		return d.DecodeArray(v)
 	case *map[string]interface{}:
 		return d.DecodeMap(v)
+	case DecodeMsgpacker:
+		// If we know this object does its own decoding, we bypass everything
+		// and just let it handle itself
+		return v.DecodeMsgpack(d)
+	case DecodeMsgpackExter:
+		goto FromCode
 	}
 
 	// Next up: try using reflect to find out the general family of
@@ -610,13 +625,13 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 	}
 }
 
-func (d *Decoder) decodeExt() (interface{}, error) {
+func (d *Decoder) DecodeExtLength(l *int) error {
 	code, err := d.ReadCode()
 	if err != nil {
-		return nil, errors.Wrap(err, `msgpack: failed to read code`)
+		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
 
-	var payloadSize int64
+	var payloadSize int
 	switch code {
 	case FixExt1:
 		payloadSize = 1
@@ -631,21 +646,32 @@ func (d *Decoder) decodeExt() (interface{}, error) {
 	case Ext8:
 		s, err := d.src.ReadUint8()
 		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to read size for ext8 value`)
+			return errors.Wrap(err, `msgpack: failed to read size for ext8 value`)
 		}
-		payloadSize = int64(s)
+		payloadSize = int(s)
 	case Ext16:
 		s, err := d.src.ReadUint16()
 		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to read size for ext16 value`)
+			return errors.Wrap(err, `msgpack: failed to read size for ext16 value`)
 		}
-		payloadSize = int64(s)
+		payloadSize = int(s)
 	case Ext32:
 		s, err := d.src.ReadUint32()
 		if err != nil {
-			return nil, errors.Wrap(err, `msgpack: failed to read size for ext32 value`)
+			return errors.Wrap(err, `msgpack: failed to read size for ext32 value`)
 		}
-		payloadSize = int64(s)
+		payloadSize = int(s)
+	default:
+		return errors.Errorf(`msgpack: invalid ext code %s`, code)
+	}
+	*l = payloadSize
+	return nil
+}
+
+func (d *Decoder) decodeExt() (interface{}, error) {
+	var l int
+	if err := d.DecodeExtLength(&l); err != nil {
+		return nil, errors.Wrap(err, `msgpack: failed to decode ext length`)
 	}
 
 	// lookup the Go type from Msgpack type
@@ -668,7 +694,7 @@ func (d *Decoder) decodeExt() (interface{}, error) {
 		// At this point we delegate to the underlying object, but
 		// we should limit reading to the payload size
 
-		if err := rv.DecodeMsgpackExt(NewReader(io.LimitReader(d.raw, payloadSize))); err != nil {
+		if err := rv.DecodeMsgpackExt(NewReader(io.LimitReader(d.raw, int64(l)))); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to call DecodeMsgpackExt`)
 		}
 

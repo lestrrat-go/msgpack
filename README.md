@@ -29,7 +29,34 @@ func init() {
   }
 }
 
-func (t *EventTime) DecodeMsgpackExt(r msgpack.Reader) error {
+func (t *EventTime) DecodeMsgpack(d *msgpack.Decoder) error {
+  code, err := d.ReadCode()
+  if err != nil {
+    return errors.Wrap(err, `failed to read code`)
+  }
+
+  r := d.Reader()
+  switch code {
+  case msgpack.FixExt8:
+    // no op. we know we have 8 bytes
+  case msgpack.Ext8:
+    size, err := r.ReadUint8()
+    if err != nil {
+      return errors.Wrap(err, `failed to read ext8 length`)
+    }
+
+    if size != 8 {
+      return errors.Wrap(err, `expected 8 bytes payload`)
+    }
+  default:
+    return errors.Errorf(`invalid code %s`, code)
+  }
+
+  typ, err := r.ReadUint8()
+  if typ != 0 {
+    return errors.Errorf(`invalid ext type %d`, typ)
+  }
+
   sec, err := r.ReadUint32()
   if err != nil {
     return errors.Wrap(err, `failed to read uint32 from first 4 bytes`)
@@ -44,7 +71,11 @@ func (t *EventTime) DecodeMsgpackExt(r msgpack.Reader) error {
   return nil
 }
 
-func (t EventTime) EncodeMsgpackExt(w msgpack.Writer) error {
+func (t EventTime) EncodeMsgpack(e *msgpack.Encoder) error {
+  e.EncodeExtHeader(8)
+  e.EncodeExtType(t)
+
+  w := e.Writer()
   if err := w.WriteUint32(uint32(t.Unix())); err != nil {
     return errors.Wrap(err, `failed to write EventTime seconds payload`)
   }
@@ -56,32 +87,11 @@ func (t EventTime) EncodeMsgpackExt(w msgpack.Writer) error {
   return nil
 }
 
-func ExampleMsgpackExt_MarshalUnmarshal() {
-  var t1 EventTime
-  t1.Time = time.Unix(1234567890, 123).UTC()
-
-  b, err := msgpack.Marshal(t1)
-  if err != nil {
-    fmt.Printf("%s\n", err)
-    return
-  }
-
-  var t2 EventTime
-  if err := msgpack.Unmarshal(b, &t2); err != nil {
-    fmt.Printf("%s\n", err)
-    return
-  }
-
-  fmt.Printf("%s\n", t2.UTC())
-  // OUTPUT:
-  // 2009-02-13 23:31:30.000000123 +0000 UTC
-}
-
 type FluentdMessage struct {
   Tag    string
   Time   EventTime
   Record map[string]interface{}
-  Option interface{}
+  Option map[string]interface{}
 }
 
 func (m FluentdMessage) EncodeMsgpack(e *msgpack.Encoder) error {
@@ -91,13 +101,13 @@ func (m FluentdMessage) EncodeMsgpack(e *msgpack.Encoder) error {
   if err := e.EncodeString(m.Tag); err != nil {
     return errors.Wrap(err, `failed to encode tag`)
   }
-  if err := e.Encode(m.Time); err != nil {
+  if err := e.EncodeStruct(m.Time); err != nil {
     return errors.Wrap(err, `failed to encode time`)
   }
-  if err := e.Encode(m.Record); err != nil {
+  if err := e.EncodeMap(m.Record); err != nil {
     return errors.Wrap(err, `failed to encode record`)
   }
-  if err := e.Encode(m.Option); err != nil {
+  if err := e.EncodeMap(m.Option); err != nil {
     return errors.Wrap(err, `failed to encode option`)
   }
   return nil
@@ -117,15 +127,15 @@ func (m *FluentdMessage) DecodeMsgpack(e *msgpack.Decoder) error {
     return errors.Wrap(err, `failed to decode fluentd message tag`)
   }
 
-  if err := e.Decode(&m.Time); err != nil {
+  if err := e.DecodeStruct(&m.Time); err != nil {
     return errors.Wrap(err, `failed to decode fluentd time`)
   }
 
-  if err := e.Decode(&m.Record); err != nil {
+  if err := e.DecodeMap(&m.Record); err != nil {
     return errors.Wrap(err, `failed to decode fluentd record`)
   }
 
-  if err := e.Decode(&m.Option); err != nil {
+  if err := e.DecodeMap(&m.Option); err != nil {
     return errors.Wrap(err, `failed to decode fluentd option`)
   }
 
@@ -155,7 +165,7 @@ func ExampleFluentdMessage() {
 
   fmt.Printf("%s %s %v %v\n", f2.Tag, f2.Time, f2.Record, f2.Option)
   // OUTPUT:
-  // foo 2009-02-13 23:31:30.000000123 +0000 UTC map[count:1000] <nil>
+  // foo 2009-02-13 23:31:30.000000123 +0000 UTC map[count:1000] map[]
 }
 ```
 
@@ -209,87 +219,105 @@ person who likes to live on the bleeding edge, you probably want to use another 
 Current status
 
 ```
-$ go test -run=none -tags bench -benchmem -bench .
-BenchmarkEncodeFloat32/___lestrrat/float32_via_Encode()-4         	30000000	        51.2 ns/op	       4 B/op	       1 allocs/op
-BenchmarkEncodeFloat32/___lestrrat/float32_via_EncodeFloat32()-4  	100000000	        25.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeFloat32/vmihailenco/float32_via_Encode()-4         	20000000	        58.7 ns/op	       4 B/op	       1 allocs/op
-BenchmarkEncodeFloat32/vmihailenco/float32_via_EncodeFloat32()-4  	50000000	        24.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeFloat64/___lestrrat/float64_via_Encode()-4         	20000000	        53.8 ns/op	       8 B/op	       1 allocs/op
-BenchmarkEncodeFloat64/___lestrrat/float64_via_EncodeFloat64()-4  	100000000	        31.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeFloat64/vmihailenco/float64_via_Encode()-4         	20000000	        60.3 ns/op	       8 B/op	       1 allocs/op
-BenchmarkEncodeFloat64/vmihailenco/float64_via_EncodeFloat64()-4  	50000000	        26.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeUint8/___lestrrat/uint8_via_Encode()-4             	30000000	        55.2 ns/op	       1 B/op	       1 allocs/op
-BenchmarkEncodeUint8/___lestrrat/uint8_via_EncodeUint8()-4        	100000000	        22.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeUint8/vmihailenco/uint8_via_Encode()-4             	10000000	       191 ns/op	       1 B/op	       1 allocs/op
-BenchmarkEncodeUint8/vmihailenco/uint8_via_EncodeUint8()-4        	100000000	        27.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeUint16/___lestrrat/uint16_via_Encode()-4           	30000000	        53.5 ns/op	       2 B/op	       1 allocs/op
-BenchmarkEncodeUint16/___lestrrat/uint16_via_EncodeUint16()-4     	50000000	        24.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeUint16/vmihailenco/uint16_via_Encode()-4           	10000000	       195 ns/op	       2 B/op	       1 allocs/op
-BenchmarkEncodeUint16/vmihailenco/uint16_via_EncodeUint16()-4     	50000000	        37.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeUint32/___lestrrat/uint32_via_Encode()-4           	20000000	        76.9 ns/op	       4 B/op	       1 allocs/op
-BenchmarkEncodeUint32/___lestrrat/uint32_via_EncodeUint32()-4     	100000000	        38.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeUint32/vmihailenco/uint32_via_Encode()-4           	 5000000	       285 ns/op	       4 B/op	       1 allocs/op
-BenchmarkEncodeUint32/vmihailenco/uint32_via_EncodeUint32()-4     	30000000	        52.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeUint64/___lestrrat/uint64_via_Encode()-4           	20000000	        99.2 ns/op	       8 B/op	       1 allocs/op
-BenchmarkEncodeUint64/___lestrrat/uint64_via_EncodeUint64()-4     	30000000	        57.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeUint64/vmihailenco/uint64_via_Encode()-4           	10000000	       162 ns/op	       8 B/op	       1 allocs/op
-BenchmarkEncodeUint64/vmihailenco/uint64_via_EncodeUint64()-4     	30000000	        48.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeInt8/___lestrrat/int8_via_Encode()-4               	20000000	        74.8 ns/op	       1 B/op	       1 allocs/op
-BenchmarkEncodeInt8/___lestrrat/int8_via_EncodeInt8()-4           	50000000	        33.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeInt8/vmihailenco/int8_via_Encode()-4               	 5000000	       288 ns/op	       2 B/op	       2 allocs/op
-BenchmarkEncodeInt8/vmihailenco/int8_via_EncodeInt8()-4           	30000000	        42.2 ns/op	       1 B/op	       1 allocs/op
-BenchmarkEncodeInt8FixNum/___lestrrat/int8_via_Encode()-4         	20000000	        55.7 ns/op	       1 B/op	       1 allocs/op
-BenchmarkEncodeInt8FixNum/___lestrrat/int8_via_EncodeInt8()-4     	50000000	        28.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeInt8FixNum/vmihailenco/int8_via_Encode()-4         	10000000	       213 ns/op	       2 B/op	       2 allocs/op
-BenchmarkEncodeInt8FixNum/vmihailenco/int8_via_EncodeInt8()-4     	50000000	        39.2 ns/op	       1 B/op	       1 allocs/op
-BenchmarkEncodeInt16/___lestrrat/int16_via_Encode()-4             	20000000	        58.7 ns/op	       2 B/op	       1 allocs/op
-BenchmarkEncodeInt16/___lestrrat/int16_via_EncodeInt16()-4        	100000000	        27.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeInt16/vmihailenco/int16_via_Encode()-4             	10000000	       238 ns/op	       2 B/op	       1 allocs/op
-BenchmarkEncodeInt16/vmihailenco/int16_via_EncodeInt16()-4        	50000000	        32.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeInt32/___lestrrat/int32_via_Encode()-4             	20000000	        62.4 ns/op	       4 B/op	       1 allocs/op
-BenchmarkEncodeInt32/___lestrrat/int32_via_EncodeInt32()-4        	50000000	        31.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeInt32/vmihailenco/int32_via_Encode()-4             	 5000000	       258 ns/op	       4 B/op	       1 allocs/op
-BenchmarkEncodeInt32/vmihailenco/int32_via_EncodeInt32()-4        	30000000	        37.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeInt64/___lestrrat/int64_via_Encode()-4             	20000000	        69.3 ns/op	       8 B/op	       1 allocs/op
-BenchmarkEncodeInt64/___lestrrat/int64_via_EncodeInt64()-4        	50000000	        27.2 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeInt64/vmihailenco/int64_via_Encode()-4             	20000000	        73.5 ns/op	       8 B/op	       1 allocs/op
-BenchmarkEncodeInt64/vmihailenco/int64_via_EncodeInt64()-4        	50000000	        40.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkEncodeString/___lestrrat/string_(255_bytes)_via_Encode()-4         	 5000000	       215 ns/op	     272 B/op	       2 allocs/op
-BenchmarkEncodeString/___lestrrat/string_(255_bytes)_via_EncodeString()-4   	10000000	       171 ns/op	     256 B/op	       1 allocs/op
-BenchmarkEncodeString/___lestrrat/string_(256_bytes)_via_Encode()-4         	10000000	       217 ns/op	     272 B/op	       2 allocs/op
-BenchmarkEncodeString/___lestrrat/string_(256_bytes)_via_EncodeString()-4   	10000000	       170 ns/op	     256 B/op	       1 allocs/op
-BenchmarkEncodeString/___lestrrat/string_(65536_bytes)_via_Encode()-4       	  100000	     15912 ns/op	   65552 B/op	       2 allocs/op
-BenchmarkEncodeString/___lestrrat/string_(65536_bytes)_via_EncodeString()-4 	  100000	     17251 ns/op	   65536 B/op	       1 allocs/op
-BenchmarkEncodeString/vmihailenco/string_(255_bytes)_via_Encode()-4         	 5000000	       226 ns/op	     272 B/op	       2 allocs/op
-BenchmarkEncodeString/vmihailenco/string_(255_bytes)_via_EncodeString()-4   	10000000	       157 ns/op	     256 B/op	       1 allocs/op
-BenchmarkEncodeString/vmihailenco/string_(256_bytes)_via_Encode()-4         	10000000	       221 ns/op	     272 B/op	       2 allocs/op
-BenchmarkEncodeString/vmihailenco/string_(256_bytes)_via_EncodeString()-4   	10000000	       150 ns/op	     256 B/op	       1 allocs/op
-BenchmarkEncodeString/vmihailenco/string_(65536_bytes)_via_Encode()-4       	  100000	     15048 ns/op	   65552 B/op	       2 allocs/op
-BenchmarkEncodeString/vmihailenco/string_(65536_bytes)_via_EncodeString()-4 	  100000	     14580 ns/op	   65536 B/op	       1 allocs/op
-BenchmarkDecodeUint8/___lestrrat/uint8_via_DecodeUint8()-4                  	20000000	        51.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeUint8/vmihailenco/uint8_via_DecodeUint8()_(return)-4         	30000000	        52.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeUint16/___lestrrat/uint16_via_DecodeUint16()-4               	30000000	        51.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeUint16/vmihailenco/uint16_via_DecodeUint16()_(return)-4      	20000000	        93.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeUint32/___lestrrat/uint32_via_DecodeUint32()-4               	20000000	        53.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeUint32/vmihailenco/uint32_via_DecodeUint32()_(return)-4      	20000000	        92.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeUint64/___lestrrat/uint64_via_DecodeUint64()-4               	30000000	        49.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeUint64/vmihailenco/uint64_via_DecodeUint64()_(return)-4      	20000000	        96.8 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt8FixNum/___lestrrat/int8_via_DecodeInt8()-4               	50000000	        34.0 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt8FixNum/vmihailenco/int8_via_DecodeInt8()_(return)-4      	30000000	        41.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt8/___lestrrat/int8_via_DecodeInt8()-4                     	30000000	        53.6 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt8/vmihailenco/int8_via_DecodeInt8()_(return)-4            	20000000	        59.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt16/___lestrrat/int16_via_DecodeInt16()-4                  	20000000	        82.3 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt16/vmihailenco/int16_via_DecodeInt16()_(return)-4         	10000000	       149 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt32/___lestrrat/int32_via_DecodeInt32()-4                  	30000000	        57.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt32/vmihailenco/int32_via_DecodeInt32()_(return)-4         	20000000	        99.1 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt64/___lestrrat/int64_via_DecodeInt64()-4                  	30000000	        49.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeInt64/vmihailenco/int64_via_DecodeInt64()_(return)-4         	20000000	        92.5 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeFloat32/___lestrrat/float32_via_DecodeFloat32()-4            	30000000	        39.4 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeFloat32/vmihailenco/float32_via_DecodeFloat32()_(return)-4   	20000000	        85.9 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeFloat64/___lestrrat/float64_via_DecodeFloat64()-4            	30000000	        42.7 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecodeFloat64/vmihailenco/float64_via_DecodeFloat64()_(return)-4   	20000000	        91.0 ns/op	       0 B/op	       0 allocs/op
+$ go test -tags bench -v -run=none -benchmem -bench .
+BenchmarkEncodeFloat32/___lestrrat/float32_via_Encode()-4                     30000000        51.0 ns/op         4 B/op         1 allocs/op
+BenchmarkEncodeFloat32/___lestrrat/float32_via_EncodeFloat32()-4             100000000        22.4 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeFloat32/vmihailenco/float32_via_Encode()-4                     20000000        55.8 ns/op         4 B/op         1 allocs/op
+BenchmarkEncodeFloat32/vmihailenco/float32_via_EncodeFloat32()-4             100000000        23.9 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeFloat64/___lestrrat/float64_via_Encode()-4                     30000000        57.7 ns/op         8 B/op         1 allocs/op
+BenchmarkEncodeFloat64/___lestrrat/float64_via_EncodeFloat64()-4             100000000        25.6 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeFloat64/vmihailenco/float64_via_Encode()-4                     20000000        60.4 ns/op         8 B/op         1 allocs/op
+BenchmarkEncodeFloat64/vmihailenco/float64_via_EncodeFloat64()-4              50000000        25.7 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeUint8/___lestrrat/uint8_via_Encode()-4                         30000000        43.8 ns/op         1 B/op         1 allocs/op
+BenchmarkEncodeUint8/___lestrrat/uint8_via_EncodeUint8()-4                   100000000        22.7 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeUint8/vmihailenco/uint8_via_Encode()-4                         10000000         178 ns/op         1 B/op         1 allocs/op
+BenchmarkEncodeUint8/vmihailenco/uint8_via_EncodeUint8()-4                    50000000        26.9 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeUint16/___lestrrat/uint16_via_Encode()-4                       20000000        54.0 ns/op         2 B/op         1 allocs/op
+BenchmarkEncodeUint16/___lestrrat/uint16_via_EncodeUint16()-4                100000000        24.6 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeUint16/vmihailenco/uint16_via_Encode()-4                        5000000         210 ns/op         2 B/op         1 allocs/op
+BenchmarkEncodeUint16/vmihailenco/uint16_via_EncodeUint16()-4                 50000000        27.1 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeUint32/___lestrrat/uint32_via_Encode()-4                       20000000        56.2 ns/op         4 B/op         1 allocs/op
+BenchmarkEncodeUint32/___lestrrat/uint32_via_EncodeUint32()-4                 50000000        23.5 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeUint32/vmihailenco/uint32_via_Encode()-4                       10000000         203 ns/op         4 B/op         1 allocs/op
+BenchmarkEncodeUint32/vmihailenco/uint32_via_EncodeUint32()-4                 50000000        49.7 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeUint64/___lestrrat/uint64_via_Encode()-4                       20000000        75.2 ns/op         8 B/op         1 allocs/op
+BenchmarkEncodeUint64/___lestrrat/uint64_via_EncodeUint64()-4                 50000000        29.9 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeUint64/vmihailenco/uint64_via_Encode()-4                       20000000        82.9 ns/op         8 B/op         1 allocs/op
+BenchmarkEncodeUint64/vmihailenco/uint64_via_EncodeUint64()-4                 50000000        40.8 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeInt8/___lestrrat/int8_via_Encode()-4                           20000000        61.3 ns/op         1 B/op         1 allocs/op
+BenchmarkEncodeInt8/___lestrrat/int8_via_EncodeInt8()-4                       30000000        37.8 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeInt8/vmihailenco/int8_via_Encode()-4                            5000000         277 ns/op         2 B/op         2 allocs/op
+BenchmarkEncodeInt8/vmihailenco/int8_via_EncodeInt8()-4                       20000000        52.3 ns/op         1 B/op         1 allocs/op
+BenchmarkEncodeInt8FixNum/___lestrrat/int8_via_Encode()-4                     20000000        63.2 ns/op         1 B/op         1 allocs/op
+BenchmarkEncodeInt8FixNum/___lestrrat/int8_via_EncodeInt8()-4                 50000000        26.7 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeInt8FixNum/vmihailenco/int8_via_Encode()-4                      5000000         210 ns/op         2 B/op         2 allocs/op
+BenchmarkEncodeInt8FixNum/vmihailenco/int8_via_EncodeInt8()-4                 50000000        35.1 ns/op         1 B/op         1 allocs/op
+BenchmarkEncodeInt16/___lestrrat/int16_via_Encode()-4                         30000000        50.4 ns/op         2 B/op         1 allocs/op
+BenchmarkEncodeInt16/___lestrrat/int16_via_EncodeInt16()-4                   100000000        23.4 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeInt16/vmihailenco/int16_via_Encode()-4                         10000000         186 ns/op         2 B/op         1 allocs/op
+BenchmarkEncodeInt16/vmihailenco/int16_via_EncodeInt16()-4                    50000000        44.7 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeInt32/___lestrrat/int32_via_Encode()-4                         20000000        67.5 ns/op         4 B/op         1 allocs/op
+BenchmarkEncodeInt32/___lestrrat/int32_via_EncodeInt32()-4                    50000000        33.0 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeInt32/vmihailenco/int32_via_Encode()-4                          5000000         301 ns/op         4 B/op         1 allocs/op
+BenchmarkEncodeInt32/vmihailenco/int32_via_EncodeInt32()-4                    50000000        32.1 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeInt64/___lestrrat/int64_via_Encode()-4                         30000000        56.9 ns/op         8 B/op         1 allocs/op
+BenchmarkEncodeInt64/___lestrrat/int64_via_EncodeInt64()-4                   100000000        24.8 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeInt64/vmihailenco/int64_via_Encode()-4                         20000000        62.3 ns/op         8 B/op         1 allocs/op
+BenchmarkEncodeInt64/vmihailenco/int64_via_EncodeInt64()-4                    50000000        30.6 ns/op         0 B/op         0 allocs/op
+BenchmarkEncodeString/___lestrrat/string_(255_bytes)_via_Encode()-4           10000000         208 ns/op       272 B/op         2 allocs/op
+BenchmarkEncodeString/___lestrrat/string_(255_bytes)_via_EncodeString()-4     10000000         149 ns/op       256 B/op         1 allocs/op
+BenchmarkEncodeString/___lestrrat/string_(256_bytes)_via_Encode()-4           10000000         190 ns/op       272 B/op         2 allocs/op
+BenchmarkEncodeString/___lestrrat/string_(256_bytes)_via_EncodeString()-4     10000000         153 ns/op       256 B/op         1 allocs/op
+BenchmarkEncodeString/___lestrrat/string_(65536_bytes)_via_Encode()-4           100000       13031 ns/op     65552 B/op         2 allocs/op
+BenchmarkEncodeString/___lestrrat/string_(65536_bytes)_via_EncodeString()-4     100000       13420 ns/op     65536 B/op         1 allocs/op
+BenchmarkEncodeString/vmihailenco/string_(255_bytes)_via_Encode()-4           10000000         204 ns/op       272 B/op         2 allocs/op
+BenchmarkEncodeString/vmihailenco/string_(255_bytes)_via_EncodeString()-4     10000000         148 ns/op       256 B/op         1 allocs/op
+BenchmarkEncodeString/vmihailenco/string_(256_bytes)_via_Encode()-4           10000000         206 ns/op       272 B/op         2 allocs/op
+BenchmarkEncodeString/vmihailenco/string_(256_bytes)_via_EncodeString()-4     10000000         163 ns/op       256 B/op         1 allocs/op
+BenchmarkEncodeString/vmihailenco/string_(65536_bytes)_via_Encode()-4           100000       14108 ns/op     65552 B/op         2 allocs/op
+BenchmarkEncodeString/vmihailenco/string_(65536_bytes)_via_EncodeString()-4     100000       19093 ns/op     65536 B/op         1 allocs/op
+BenchmarkEncodeArray/___lestrrat/array_via_Encode()-4                          3000000         484 ns/op        56 B/op         4 allocs/op
+BenchmarkEncodeArray/___lestrrat/array_via_EncodeArray()-4                     5000000         345 ns/op        56 B/op         4 allocs/op
+BenchmarkEncodeArray/vmihailenco/array_via_Encode()-4                          2000000         757 ns/op        33 B/op         2 allocs/op
+BenchmarkEncodeMap/___lestrrat/map_via_Encode()-4                              2000000         994 ns/op       208 B/op         8 allocs/op
+BenchmarkEncodeMap/___lestrrat/map_via_EncodeMap()-4                           1000000        1092 ns/op       208 B/op         8 allocs/op
+BenchmarkEncodeMap/vmihailenco/map_via_Encode()-4                              1000000        1995 ns/op       224 B/op        11 allocs/op
+BenchmarkDecodeUint8/___lestrrat/uint8_via_DecodeUint8()-4                    20000000        60.0 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeUint8/vmihailenco/uint8_via_DecodeUint8()_(return)-4           30000000        54.2 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeUint16/___lestrrat/uint16_via_DecodeUint16()-4                 30000000        53.6 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeUint16/vmihailenco/uint16_via_DecodeUint16()_(return)-4        20000000        94.0 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeUint32/___lestrrat/uint32_via_DecodeUint32()-4                 30000000        45.7 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeUint32/vmihailenco/uint32_via_DecodeUint32()_(return)-4        20000000        92.8 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeUint64/___lestrrat/uint64_via_DecodeUint64()-4                 30000000        48.5 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeUint64/vmihailenco/uint64_via_DecodeUint64()_(return)-4        20000000        86.1 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt8FixNum/___lestrrat/int8_via_DecodeInt8()-4                 50000000        34.8 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt8FixNum/vmihailenco/int8_via_DecodeInt8()_(return)-4        30000000        42.2 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt8/___lestrrat/int8_via_DecodeInt8()-4                       30000000        48.6 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt8/vmihailenco/int8_via_DecodeInt8()_(return)-4              30000000        55.5 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt16/___lestrrat/int16_via_DecodeInt16()-4                    30000000        47.2 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt16/vmihailenco/int16_via_DecodeInt16()_(return)-4           20000000        87.8 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt32/___lestrrat/int32_via_DecodeInt32()-4                    30000000        44.3 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt32/vmihailenco/int32_via_DecodeInt32()_(return)-4           20000000        87.5 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt64/___lestrrat/int64_via_DecodeInt64()-4                    30000000        47.6 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeInt64/vmihailenco/int64_via_DecodeInt64()_(return)-4           20000000        84.3 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeFloat32/___lestrrat/float32_via_DecodeFloat32()-4              30000000        39.1 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeFloat32/vmihailenco/float32_via_DecodeFloat32()_(return)-4     20000000        82.0 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeFloat64/___lestrrat/float64_via_DecodeFloat64()-4              30000000        38.4 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeFloat64/vmihailenco/float64_via_DecodeFloat64()_(return)-4     20000000        84.7 ns/op         0 B/op         0 allocs/op
+BenchmarkDecodeString/___lestrrat/string_via_Decode()-4                        5000000         294 ns/op       256 B/op         1 allocs/op
+BenchmarkDecodeString/___lestrrat/string_via_DecodeString()-4                  5000000         288 ns/op       256 B/op         1 allocs/op
+BenchmarkDecodeString/vmihailenco/string_via_Decode()-4                       10000000         223 ns/op       256 B/op         1 allocs/op
+BenchmarkDecodeString/vmihailenco/string_via_DecodeString()_(return)-4        10000000         211 ns/op       256 B/op         1 allocs/op
+BenchmarkDecodeArray/___lestrrat/array_via_Decode()_(concrete)-4               2000000         773 ns/op       104 B/op         5 allocs/op
+BenchmarkDecodeArray/___lestrrat/array_via_Decode()_(interface{})-4            2000000         942 ns/op       120 B/op         6 allocs/op
+BenchmarkDecodeArray/___lestrrat/array_via_DecodeArray()-4                     2000000         763 ns/op       104 B/op         5 allocs/op
+BenchmarkDecodeArray/vmihailenco/array_via_Decode()_(concrete)-4               1000000        1607 ns/op       248 B/op         9 allocs/op
+BenchmarkDecodeArray/vmihailenco/array_via_Decode()_(interface{})-4            2000000         727 ns/op       120 B/op         6 allocs/op
+BenchmarkDecodeMap/___lestrrat/map_via_Decode()-4                              1000000        1660 ns/op       440 B/op        12 allocs/op
+BenchmarkDecodeMap/___lestrrat/map_via_DecodeMap()-4                           1000000        1609 ns/op       440 B/op        12 allocs/op
+BenchmarkDecodeMap/vmihailenco/map_via_Decode()-4                              1000000        1070 ns/op       392 B/op         9 allocs/op
 PASS
-ok  	github.com/lestrrat/go-msgpack	142.374s
+ok    github.com/lestrrat/go-msgpack  171.139s
 ```
 
 # ACKNOWLEDGEMENTS

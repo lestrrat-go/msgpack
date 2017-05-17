@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 
-	bufferpool "github.com/lestrrat/go-bufferpool"
 	"github.com/pkg/errors"
 )
 
@@ -55,6 +54,10 @@ func isEncodeMsgpacker(t reflect.Type) bool {
 	return t.Implements(encodeMsgpackerType)
 }
 
+func (e *Encoder) Writer() Writer {
+	return e.dst
+}
+
 func (e *Encoder) Encode(v interface{}) error {
 	switch v := v.(type) {
 	case string:
@@ -96,8 +99,9 @@ INDIRECT:
 		if !rv.IsValid() {
 			return e.EncodeNil()
 		}
-		if typ, ok := isExtType(rv.Type()); ok {
-			return e.EncodeExt(typ, rv.Interface().(EncodeMsgpackExter))
+
+		if _, ok := isExtType(rv.Type()); ok {
+			return e.EncodeExt(rv.Interface().(EncodeMsgpacker))
 		}
 
 		if ok := isEncodeMsgpacker(rv.Type()); ok {
@@ -304,6 +308,10 @@ func (e *Encoder) EncodeArray(v interface{}) error {
 
 func (e *Encoder) EncodeMap(v interface{}) error {
 	rv := reflect.ValueOf(v)
+	if !rv.IsValid() || rv.IsNil() {
+		return e.EncodeNil()
+	}
+
 	if rv.Kind() != reflect.Map {
 		return errors.Errorf(`msgpack: argument to EncodeMap must be a map (not %s)`, rv.Type())
 	}
@@ -378,6 +386,18 @@ func parseMsgpackTag(rv reflect.StructField) (string, bool) {
 
 func (e *Encoder) EncodeStruct(v interface{}) error {
 	rv := reflect.ValueOf(v)
+	if !rv.IsValid() {
+		return e.EncodeNil()
+	}
+
+	if _, ok := isExtType(rv.Type()); ok {
+		return e.EncodeExt(v.(EncodeMsgpacker))
+	}
+
+	if v, ok := v.(EncodeMsgpacker); ok {
+		return v.EncodeMsgpack(e)
+	}
+
 	if rv.Kind() != reflect.Struct {
 		return errors.Errorf(`msgpack: argument to EncodeStruct must be a struct (not %s)`, rv.Type())
 	}
@@ -411,16 +431,32 @@ func (e *Encoder) EncodeStruct(v interface{}) error {
 	return nil
 }
 
-func (e *Encoder) EncodeExt(typ int, v EncodeMsgpackExter) error {
-	buf := bufferpool.Get()
-	defer bufferpool.Release(buf)
+func (e *Encoder) EncodeExtType(v EncodeMsgpacker) error {
+	t := reflect.TypeOf(v)
 
-	var w = NewWriter(buf)
-	if err := v.EncodeMsgpackExt(w); err != nil {
-		return errors.Wrapf(err, `msgpack: failed during call to EncodeMsgpackExt for %s`, reflect.TypeOf(v))
+	muExtDecode.RLock()
+	typ, ok := extEncodeRegistry[t]
+	muExtDecode.RUnlock()
+
+	if !ok {
+		return errors.Errorf(`msgpack: type %s has not been registered as an extension`, reflect.TypeOf(v))
 	}
 
-	switch l := buf.Len(); {
+	if err := e.dst.WriteByte(byte(typ)); err != nil {
+		return errors.Wrapf(err, `msgpack: failed to write ext type for %s`, t)
+	}
+	return nil
+}
+
+func (e *Encoder) EncodeExt(v EncodeMsgpacker) error {
+	if err := v.EncodeMsgpack(e); err != nil {
+		return errors.Wrapf(err, `msgpack: failed during call to EncodeMsgpack for %s`, reflect.TypeOf(v))
+	}
+	return nil
+}
+
+func (e *Encoder) EncodeExtHeader(l int) error {
+	switch {
 	case l == 1:
 		if err := e.dst.WriteByte(FixExt1.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext1 code`)
@@ -442,36 +478,20 @@ func (e *Encoder) EncodeExt(typ int, v EncodeMsgpackExter) error {
 			return errors.Wrap(err, `msgpack: failed to write fixext16 code`)
 		}
 	case l <= math.MaxUint8:
-		if err := e.dst.WriteByte(Ext8.Byte()); err != nil {
-			return errors.Wrap(err, `msgpack: failed to write ext8 code`)
-		}
-		if err := e.dst.WriteByte(byte(l)); err != nil {
-			return errors.Wrap(err, `msgpack: failed to write ext8 payload length`)
+		if err := e.dst.WriteByteUint8(Ext8.Byte(), uint8(l)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write ext8 code and payload length`)
 		}
 	case l <= math.MaxUint16:
-		if err := e.dst.WriteByte(Ext16.Byte()); err != nil {
-			return errors.Wrap(err, `msgpack: failed to write ext16 code`)
-		}
-		if err := e.dst.WriteUint16(uint16(l)); err != nil {
-			return errors.Wrap(err, `msgpack: failed to write ext16 payload length`)
+		if err := e.dst.WriteByteUint16(Ext16.Byte(), uint16(l)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write ext16 code and payload length`)
 		}
 	case l <= math.MaxUint32:
-		if err := e.dst.WriteByte(Ext32.Byte()); err != nil {
-			return errors.Wrap(err, `msgpack: failed to write ext32 code`)
-		}
-		if err := e.dst.WriteUint32(uint32(l)); err != nil {
-			return errors.Wrap(err, `msgpack: failed to write ext32 payload length`)
+		if err := e.dst.WriteByteUint32(Ext32.Byte(), uint32(l)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write ext32 code and payload length`)
 		}
 	default:
 		return errors.Errorf(`msgpack: extension payload too large: %d bytes`, l)
 	}
 
-	if err := e.dst.WriteByte(byte(typ)); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write typ code`)
-	}
-
-	if _, err := buf.WriteTo(e.dst); err != nil {
-		return errors.Wrap(err, `msgpack: failed to write extention payload`)
-	}
 	return nil
 }
