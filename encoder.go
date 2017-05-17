@@ -384,6 +384,7 @@ func parseMsgpackTag(rv reflect.StructField) (string, bool) {
 	return name, omitempty
 }
 
+// EncodeStruct encodes a struct value as a map object.
 func (e *Encoder) EncodeStruct(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if !rv.IsValid() {
