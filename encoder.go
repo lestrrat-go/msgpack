@@ -306,6 +306,11 @@ func (e *Encoder) EncodeArray(v interface{}) error {
 
 func (e *Encoder) EncodeMap(v interface{}) error {
 	rv := reflect.ValueOf(v)
+
+	if !rv.IsValid() {
+		return e.EncodeNil()
+	}
+
 	if rv.Kind() != reflect.Map {
 		var typ string
 		if !rv.IsValid() {
@@ -315,7 +320,8 @@ func (e *Encoder) EncodeMap(v interface{}) error {
 		}
 		return errors.Errorf(`msgpack: argument to EncodeMap must be a map (not %s)`, typ)
 	}
-	if !rv.IsValid() || rv.IsNil() {
+
+	if rv.IsNil() {
 		return e.EncodeNil()
 	}
 
