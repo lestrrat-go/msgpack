@@ -4,12 +4,22 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"testing"
 
 	msgpack "github.com/lestrrat/go-msgpack"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestEncodeMapInvalidValue(t *testing.T) {
+	var f struct {
+		Foo string
+	}
+
+	// shouldn't panic
+	msgpack.NewEncoder(ioutil.Discard).EncodeMap(f)
+}
 
 func TestEncodeNil(t *testing.T) {
 	var e = []byte{msgpack.Nil.Byte()}

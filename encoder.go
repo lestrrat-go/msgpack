@@ -306,13 +306,25 @@ func (e *Encoder) EncodeArray(v interface{}) error {
 
 func (e *Encoder) EncodeMap(v interface{}) error {
 	rv := reflect.ValueOf(v)
-	if !rv.IsValid() || rv.IsNil() {
+
+	if !rv.IsValid() {
 		return e.EncodeNil()
 	}
 
 	if rv.Kind() != reflect.Map {
-		return errors.Errorf(`msgpack: argument to EncodeMap must be a map (not %s)`, rv.Type())
+		var typ string
+		if !rv.IsValid() {
+			typ = "invalid"
+		} else {
+			typ = rv.Type().String()
+		}
+		return errors.Errorf(`msgpack: argument to EncodeMap must be a map (not %s)`, typ)
 	}
+
+	if rv.IsNil() {
+		return e.EncodeNil()
+	}
+
 	if rv.Type().Key().Kind() != reflect.String {
 		return errors.Errorf(`msgpack: keys to maps must be strings (not %s)`, rv.Type().Key())
 	}
