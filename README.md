@@ -207,6 +207,18 @@ use the `msgpack.Writer` and `msgpack.Reader` objects.
 These objects know how to read or write bytes of data in the correct
 byte order.
 
+## Struct Tags
+
+Struct tags are supported via the `msgpack` keyword. The syntax follows that of 
+`encoding/json` package:
+
+```go
+type Example struct {
+    Foo struct `msgpack:"foo"`
+    Bar struct `msgpack:"bar,omitempty"`
+}
+```
+
 # PROS/CONS
 
 ## PROS

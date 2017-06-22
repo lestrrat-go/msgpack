@@ -145,3 +145,57 @@ func ExampleEventTime() {
 	// OUTPUT:
 }
 
+func ExampleStructTag() {
+	var v struct {
+		Foo string `msgpack:"foo"`
+		Bar string `msgpack:"bar,omitempty"`
+	}
+
+	b, err := msgpack.Marshal(v)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+
+	var m map[string]interface{}
+	if err := msgpack.Unmarshal(b, &m); err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+
+	if _, ok := m["foo"]; !ok {
+		fmt.Printf(`payload should have contained "foo"`)
+		return
+	}
+
+	if _, ok := m["bar"]; ok {
+		fmt.Printf(`payload should NOT contain "bar"`)
+		return
+	}
+
+	v.Bar = "bar"
+
+	b, err = msgpack.Marshal(v)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+
+	m = map[string]interface{}{} // reinitialize
+	if err := msgpack.Unmarshal(b, &m); err != nil {
+		fmt.Printf("%s\n", err)
+		return
+	}
+
+	if _, ok := m["foo"]; !ok {
+		fmt.Printf(`payload should have contained "foo"`)
+		return
+	}
+
+	if _, ok := m["bar"]; !ok {
+		fmt.Printf(`payload should have contained "bar"`)
+		return
+	}
+
+	// OUTPUT:
+}
