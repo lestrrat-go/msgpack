@@ -1,6 +1,6 @@
 # go-msgpack
 
-A Work-In-Progress `msgpack` serializer and deserializer
+A `msgpack` serializer and deserializer
 
 [![Build Status](https://travis-ci.org/lestrrat/go-msgpack.png?branch=master)](https://travis-ci.org/lestrrat/go-msgpack)
 
