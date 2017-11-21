@@ -7,13 +7,28 @@ package msgpack
 
 import (
 	"bytes"
+	"sync"
 
 	"github.com/pkg/errors"
 )
 
+var pool = sync.Pool{
+	New: allocAppendingWriter,
+}
+
+func allocAppendingWriter() interface{} {
+	return newAppendingWriter(9)
+}
+
+func releaseAppendingWriter(w *appendingWriter) {
+	w.buf = w.buf[0:0]
+	pool.Put(w)
+}
+
 // Marshal takes a Go value and serializes it in msgpack format.
 func Marshal(v interface{}) ([]byte, error) {
-	var buf = newAppendingWriter(9)
+	var buf = pool.Get().(*appendingWriter) // newAppendingWriter(9)
+	defer releaseAppendingWriter(buf)
 	if err := NewEncoder(buf).Encode(v); err != nil {
 		return nil, errors.Wrap(err, `failed to marshal`)
 	}
