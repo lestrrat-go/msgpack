@@ -378,17 +378,26 @@ func (e *Encoder) EncodeMap(v interface{}) error {
 	return nil
 }
 
+var tags = []string{`msgpack`, `msg`}
+
 func parseMsgpackTag(rv reflect.StructField) (string, bool) {
 	var name = rv.Name
 	var omitempty bool
-	if tag := rv.Tag.Get(`msgpack`); tag != "" {
-		l := strings.Split(tag, ",")
-		if len(l) > 0 && l[0] != "" {
-			name = l[0]
-		}
 
-		if len(l) > 1 && l[1] == "omitempty" {
-			omitempty = true
+	// We will support both msg and msgpack tags, the former
+	// is used by tinylib/msgp, and the latter vmihailenco/msgpack
+LOOP:
+	for _, tagName := range tags {
+		if tag, ok := rv.Tag.Lookup(tagName); ok && tag != "" {
+			l := strings.Split(tag, ",")
+			if len(l) > 0 && l[0] != "" {
+				name = l[0]
+			}
+
+			if len(l) > 1 && l[1] == "omitempty" {
+				omitempty = true
+			}
+			break LOOP
 		}
 	}
 	return name, omitempty
