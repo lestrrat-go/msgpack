@@ -219,6 +219,9 @@ type Example struct {
 }
 ```
 
+For convenience for those migrating from github.com/tinylib/msgpack, we also
+support the "msg" struct tag.
+
 # PROS/CONS
 
 ## PROS

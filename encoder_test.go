@@ -12,6 +12,40 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type tagTest struct {
+	Foo string `msg:"foooo"`
+	Bar string `msgpack:"baaaaaaar"`
+	Baz string `msgpack:"-"`
+}
+
+func TestTag(t *testing.T) {
+	v := tagTest{
+		Foo: "Hello",
+		Bar: "World!",
+		Baz: "Abracadabra",
+	}
+
+	data, err := msgpack.Marshal(v)
+	if !assert.NoError(t, err, "msgpack.Marshal should succeed") {
+		return
+	}
+
+	var m = make(map[string]interface{})
+	if !assert.NoError(t, msgpack.Unmarshal(data, &m), "msgpack.Unmarshal should succeed") {
+		return
+	}
+
+	if !assert.Equal(t, m["foooo"], "Hello", "key foooo should match") {
+		return
+	}
+	if !assert.Equal(t, m["baaaaaaar"], "World!", "key baaaaaaar should match") {
+		return
+	}
+	if !assert.Empty(t, m["Baz"], "key baaaaaaar should match") {
+		return
+	}
+}
+
 func TestEncodeMapInvalidValue(t *testing.T) {
 	var f struct {
 		Foo string
