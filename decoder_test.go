@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lestrrat/go-msgpack"
+	"github.com/lestrrat-go/msgpack"
 	"github.com/stretchr/testify/assert"
 )
 

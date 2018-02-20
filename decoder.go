@@ -5,7 +5,7 @@ import (
 	"io"
 	"reflect"
 
-	bufferpool "github.com/lestrrat/go-bufferpool"
+	bufferpool "github.com/lestrrat-go/bufferpool"
 	"github.com/pkg/errors"
 )
 

@@ -11,7 +11,7 @@ import (
 	"math"
 	"testing"
 
-	lestrrat "github.com/lestrrat/go-msgpack"
+	lestrrat "github.com/lestrrat-go/msgpack"
 	vmihailenco "gopkg.in/vmihailenco/msgpack.v2"
 )
 

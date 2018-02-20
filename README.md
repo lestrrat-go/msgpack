@@ -1,10 +1,10 @@
-# go-msgpack
+# msgpack
 
 A `msgpack` serializer and deserializer
 
-[![Build Status](https://travis-ci.org/lestrrat/go-msgpack.png?branch=master)](https://travis-ci.org/lestrrat/go-msgpack)
+[![Build Status](https://travis-ci.org/lestrrat-go/msgpack.png?branch=master)](https://travis-ci.org/lestrrat-go/msgpack)
 
-[![GoDoc](https://godoc.org/github.com/lestrrat/go-msgpack?status.svg)](https://godoc.org/github.com/lestrrat/go-msgpack)
+[![GoDoc](https://godoc.org/github.com/lestrrat-go/msgpack?status.svg)](https://godoc.org/github.com/lestrrat-go/msgpack)
 
 # SYNOPSIS
 
@@ -15,7 +15,7 @@ import (
   "fmt"
   "time"
 
-  msgpack "github.com/lestrrat/go-msgpack"
+  msgpack "github.com/lestrrat-go/msgpack"
   "github.com/pkg/errors"
 )
 
@@ -359,7 +359,7 @@ BenchmarkDecodeMap/___lestrrat/map_via_Decode()-4                              1
 BenchmarkDecodeMap/___lestrrat/map_via_DecodeMap()-4                           1000000        1609 ns/op       440 B/op        12 allocs/op
 BenchmarkDecodeMap/vmihailenco/map_via_Decode()-4                              1000000        1070 ns/op       392 B/op         9 allocs/op
 PASS
-ok    github.com/lestrrat/go-msgpack  171.139s
+ok    github.com/lestrrat-go/msgpack  171.139s
 ```
 
 # ACKNOWLEDGEMENTS

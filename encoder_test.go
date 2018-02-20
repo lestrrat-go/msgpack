@@ -8,7 +8,7 @@ import (
 	"math"
 	"testing"
 
-	msgpack "github.com/lestrrat/go-msgpack"
+	msgpack "github.com/lestrrat-go/msgpack"
 	"github.com/stretchr/testify/assert"
 )
 
