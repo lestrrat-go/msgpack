@@ -365,6 +365,8 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 	return nil
 }
 
+var emptyInterfaceType = reflect.TypeOf((*interface{})(nil)).Elem()
+
 // Decode takes a pointer to a variable, and populates it with the value
 // that was unmarshaled from the stream.
 //
@@ -374,8 +376,14 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 // and `map[string]interface{}` as our argument.
 func (d *Decoder) Decode(v interface{}) error {
 	rv := reflect.ValueOf(v)
+
 	// The result of decoding must be assigned to v, and v
 	// should be a pointer
+	if rv.Kind() == reflect.Interface {
+		// if it's an interface, get the underlying type
+		rv = rv.Elem()
+	}
+
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		// report error
 		var typ reflect.Type
@@ -465,6 +473,24 @@ FromCode:
 		return nil
 	}
 
+	// We may have a container...
+	if dst.Kind() == reflect.Slice && dv.Kind() == reflect.Slice {
+		if dv.Type().Elem() == emptyInterfaceType {
+			slice := reflect.MakeSlice(dst.Type(), dv.Len(), dv.Len())
+			sliceElemType := dst.Type().Elem() // []string -> string
+			// See if we can install dv's contents into dst
+			for i := 0; i < dv.Len(); i++ {
+				e := dv.Index(i)
+				if sliceElemType != e.Elem().Type() {
+					return errors.Errorf(`cannot assign slice element on index %d (slice type = %s, element type = %s)`, i, dst.Type(), e.Elem().Type())
+				}
+				slice.Index(i).Set(e.Elem())
+			}
+			dst.Set(slice)
+			return nil
+		}
+	}
+
 	// Can we convert it then?
 	if dv.Type().ConvertibleTo(dst.Type()) {
 		dst.Set(dv.Convert(dst.Type()))
@@ -472,7 +498,7 @@ FromCode:
 	}
 
 	// This could only happen if we have a decoder that creates
-	// the value dynamically, such asin the case of struct
+	// the value dynamically, such as in the case of struct
 	// decoder or extension decoder.
 	if reflect.PtrTo(dst.Type()) == dv.Type() {
 		dst.Set(dv.Elem())

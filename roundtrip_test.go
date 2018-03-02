@@ -25,6 +25,7 @@ func TestRoundTrip(t *testing.T) {
 		float64(math.MaxFloat64),
 		"Hello, World!",
 		[]byte("Hello, World!"),
+		[]string{"uno", "dos", "tres"},
 	}
 
 	for _, data := range list {
@@ -34,11 +35,11 @@ func TestRoundTrip(t *testing.T) {
 				return
 			}
 			var v interface{} = reflect.New(reflect.TypeOf(data)).Interface()
-			if !assert.NoError(t, msgpack.Unmarshal(b, &v), "Unmarshal should succeed") {
+			if !assert.NoError(t, msgpack.Unmarshal(b, v), "Unmarshal should succeed") {
 				return
 			}
 
-			if !assert.Equal(t, data, v, "RoundTrip should succeed") {
+			if !assert.Equal(t, data, reflect.ValueOf(v).Elem().Interface(), "RoundTrip should succeed") {
 				return
 			}
 		})
