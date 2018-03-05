@@ -294,3 +294,50 @@ func TestDecodeStruct(t *testing.T) {
 
 	decodeTestConcrete(t, msgpack.FixMap2, b, e)
 }
+
+type nestedInner struct {
+	Foo string
+}
+
+type nestedOuter struct {
+	InnerStruct *nestedInner
+	InnerSlice  []*nestedInner
+}
+
+func TestDecodeArray(t *testing.T) {
+	var e []nestedOuter
+	e = append(e, nestedOuter{InnerStruct: &nestedInner{Foo: "Hello"}})
+
+	buf, err := msgpack.Marshal(e)
+	if !assert.NoError(t, err, "Marshal should succeed") {
+		return
+	}
+
+	var r []nestedOuter
+	if !assert.NoError(t, msgpack.Unmarshal(buf, &r), "Unmarshal should succeed") {
+		return
+	}
+
+	if !assert.Len(t, r, 1, `r should be length 1`) {
+		return
+	}
+}
+
+func TestDecodeNestedStruct(t *testing.T) {
+	var e *nestedOuter = &nestedOuter{
+		InnerStruct: &nestedInner{Foo: "Hello"},
+		InnerSlice: []*nestedInner{
+			&nestedInner{Foo: "World"},
+		},
+	}
+
+	buf, err := msgpack.Marshal(e)
+	if !assert.NoError(t, err, "Marshal should succeed") {
+		return
+	}
+
+	var r nestedOuter
+	if !assert.NoError(t, msgpack.Unmarshal(buf, &r), "Unmarshal should succeed") {
+		return
+	}
+}

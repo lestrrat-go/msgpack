@@ -211,19 +211,37 @@ func (d *Decoder) DecodeArrayLength(l *int) error {
 	return nil
 }
 
-func (d *Decoder) DecodeArray(v *[]interface{}) error {
+func (d *Decoder) DecodeArray(v interface{}) error {
 	var size int
 	if err := d.DecodeArrayLength(&size); err != nil {
 		return errors.Wrap(err, `msgpack: failed to decode array length`)
 	}
 
-	l := make([]interface{}, size)
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Ptr {
+		return errors.Errorf(`msgpack: DecodeArray expected pointer to slice, got %s`, rv.Type())
+	}
+	rv = rv.Elem()
+	if rv.Kind() != reflect.Slice {
+		return errors.Errorf(`msgpack: DecodeArray expected slice, got %s`, rv.Type())
+	}
+
+	slice := reflect.MakeSlice(rv.Type(), size, size)
 	for i := 0; i < size; i++ {
-		if err := d.Decode(&l[i]); err != nil {
+		e := slice.Index(i)
+		if e.Kind() == reflect.Ptr {
+			if e.IsNil() {
+				e.Set(reflect.New(e.Type().Elem()))
+			}
+		} else {
+			e = e.Addr()
+		}
+		if err := d.Decode(e.Interface()); err != nil {
 			return errors.Wrapf(err, `msgpack: failed to decode array element %d`, i)
 		}
 	}
-	*v = l
+
+	rv.Set(slice)
 	return nil
 }
 
@@ -341,17 +359,25 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 			continue
 		}
 
-		if f.Kind() == reflect.Struct {
+		if f.Kind() == reflect.Slice {
+			r := reflect.New(f.Type()).Elem()
+			if err := d.Decode(r.Addr().Interface()); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to decode slice value for key %s`, key)
+			}
+			f.Set(r)
+		} else if f.Kind() == reflect.Struct {
 			if err := d.Decode(f.Addr().Interface()); err != nil {
-				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (struct)`, key)
 			}
 		} else if f.Kind() == reflect.Ptr && f.Type().Elem().Kind() == reflect.Struct {
-			if err := d.Decode(f.Interface()); err != nil {
-				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+			r := reflect.New(f.Type().Elem())
+			if err := d.Decode(r.Interface()); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (pointer to struct)`, key)
 			}
+			f.Set(r)
 		} else {
 			if err := d.Decode(&value); err != nil {
-				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (not struct/pointer to struct)`, key)
 			}
 
 			fv := reflect.ValueOf(value)
@@ -365,17 +391,114 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 	return nil
 }
 
+func assignIfCompatible(dst, src reflect.Value) (err error) {
+	// src will always be from result of a Decode. therefore
+	// we will have no pointers. But dst can be either a
+	// a pointer or the actual type
+	var dstlist = []reflect.Value{dst}
+	if dst.Kind() == reflect.Ptr {
+		if dst.Elem().IsValid() {
+			dstlist = append(dstlist, dst.Elem())
+		} else {
+			v := reflect.New(dst.Type().Elem())
+			dstlist = append(dstlist, v.Elem())
+			defer func() {
+				if err == nil {
+					dst.Set(v)
+				}
+			}()
+		}
+	}
+
+	for _, dst := range dstlist {
+		if !dst.IsValid() {
+			continue
+		}
+
+		if dst.Type() == emptyInterfaceType {
+			dst.Set(reflect.ValueOf(src.Interface()))
+			return nil
+		}
+
+		// Unmarshalers need to assign in case of pointers, too
+
+		if src.Type().AssignableTo(dst.Type()) {
+			dst.Set(src)
+			return nil
+		}
+
+		if src.Type().ConvertibleTo(dst.Type()) {
+			dst.Set(src.Convert(dst.Type()))
+			return nil
+		}
+
+		// We may have a container...
+		if dst.Kind() == reflect.Slice && src.Kind() == reflect.Slice {
+			slice := reflect.MakeSlice(dst.Type(), src.Len(), src.Len())
+			if dst.Type().Elem() == emptyInterfaceType {
+				// if this is the case, we can assign everything from
+				// src to dst
+				for i := 0; i < src.Len(); i++ {
+					dst.Index(i).Set(src.Index(i))
+				}
+				return nil
+			}
+
+			if src.Type().Elem() == emptyInterfaceType {
+				sliceElemType := dst.Type().Elem() // []string -> string
+				isSliceElemPtr := dst.Type().Elem().Kind() == reflect.Ptr
+
+				// See if we can install src's contents into dst
+			SLICE:
+				for i := 0; i < src.Len(); i++ {
+					e := src.Index(i)
+
+					var assignErr error
+					switch {
+					case sliceElemType == e.Elem().Type():
+						if assignErr = assignIfCompatible(slice.Index(i), e.Elem()); assignErr == nil {
+							continue SLICE
+						}
+					case isSliceElemPtr:
+						if sliceElemType.Elem() == e.Elem().Type() {
+							if assignErr = assignIfCompatible(slice.Index(i), e.Elem().Addr()); assignErr == nil {
+								continue SLICE
+							}
+						} else if e.Elem().Type().ConvertibleTo(sliceElemType.Elem()) {
+							v := reflect.New(sliceElemType.Elem())
+							v.Elem().Set(e.Elem().Convert(sliceElemType.Elem()))
+							if assignErr = assignIfCompatible(slice.Index(i), v); assignErr == nil {
+								continue SLICE
+							}
+						}
+					}
+
+					return errors.Wrapf(assignErr, `msgpack: cannot assign slice element on index %d (slice type = %s, element type = %s)`, i, dst.Type(), e.Elem().Type())
+				}
+				dst.Set(slice)
+				return nil
+			}
+		}
+	}
+	return errors.Errorf(`invalid type for assignment: dst = %s, src = %s`, dst.Type(), src.Type())
+}
+
+var emptyInterfaceType = reflect.TypeOf((*interface{})(nil)).Elem()
+
 // Decode takes a pointer to a variable, and populates it with the value
 // that was unmarshaled from the stream.
 //
 // If the variable is a non-pointer or nil, an error is returned.
-//
-// For maps and arrays, we can only accept `interface{}`, or `[]interface{}`
-// and `map[string]interface{}` as our argument.
 func (d *Decoder) Decode(v interface{}) error {
 	rv := reflect.ValueOf(v)
+
 	// The result of decoding must be assigned to v, and v
 	// should be a pointer
+	if rv.Kind() == reflect.Interface {
+		// if it's an interface, get the underlying type
+		rv = rv.Elem()
+	}
+
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		// report error
 		var typ reflect.Type
@@ -416,10 +539,10 @@ func (d *Decoder) Decode(v interface{}) error {
 		return d.DecodeFloat32(v)
 	case *float64:
 		return d.DecodeFloat64(v)
+	case *[]byte:
+		return d.DecodeBytes(v)
 	case *string:
 		return d.DecodeString(v)
-	case *[]interface{}:
-		return d.DecodeArray(v)
 	case *map[string]interface{}:
 		return d.DecodeMap(v)
 	case DecodeMsgpacker:
@@ -433,6 +556,15 @@ func (d *Decoder) Decode(v interface{}) error {
 	switch rv.Elem().Kind() {
 	case reflect.Struct:
 		return d.DecodeStruct(v)
+	case reflect.Slice:
+		list := reflect.New(rv.Elem().Type())
+		if err := d.DecodeArray(list.Interface()); err != nil {
+			return errors.Wrap(err, `msgpack: failed to decode array`)
+		}
+		if err := assignIfCompatible(reflect.ValueOf(v).Elem(), list.Elem()); err != nil {
+			return errors.Wrap(err, `msgpack: error while assigning slice elements`)
+		}
+		return nil
 	}
 
 FromCode:
@@ -460,19 +592,12 @@ FromCode:
 	dst := rv.Elem()
 
 	// If it's assignable, assign, and we're done.
-	if dv.Type().AssignableTo(dst.Type()) {
-		dst.Set(dv)
-		return nil
-	}
-
-	// Can we convert it then?
-	if dv.Type().ConvertibleTo(dst.Type()) {
-		dst.Set(dv.Convert(dst.Type()))
+	if err := assignIfCompatible(dst, dv); err == nil {
 		return nil
 	}
 
 	// This could only happen if we have a decoder that creates
-	// the value dynamically, such asin the case of struct
+	// the value dynamically, such as in the case of struct
 	// decoder or extension decoder.
 	if reflect.PtrTo(dst.Type()) == dv.Type() {
 		dst.Set(dv.Elem())
