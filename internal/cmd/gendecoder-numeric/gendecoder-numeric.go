@@ -73,19 +73,20 @@ func generateNumericDecoders() error {
 
 func generateIntegerTypes(dst io.Writer) error {
 	types := map[reflect.Kind]struct {
-		Code string
-		Bits int
+		Code     string
+		Bits     int
+		Unsigned bool
 	}{
 		reflect.Int:    {Code: "Int64", Bits: 64},
 		reflect.Int8:   {Code: "Int8", Bits: 8},
 		reflect.Int16:  {Code: "Int16", Bits: 16},
 		reflect.Int32:  {Code: "Int32", Bits: 32},
 		reflect.Int64:  {Code: "Int64", Bits: 64},
-		reflect.Uint:   {Code: "Uint64", Bits: 64},
-		reflect.Uint8:  {Code: "Uint8", Bits: 8},
-		reflect.Uint16: {Code: "Uint16", Bits: 16},
-		reflect.Uint32: {Code: "Uint32", Bits: 32},
-		reflect.Uint64: {Code: "Uint64", Bits: 64},
+		reflect.Uint:   {Code: "Uint64", Bits: 64, Unsigned: true},
+		reflect.Uint8:  {Code: "Uint8", Bits: 8, Unsigned: true},
+		reflect.Uint16: {Code: "Uint16", Bits: 16, Unsigned: true},
+		reflect.Uint32: {Code: "Uint32", Bits: 32, Unsigned: true},
+		reflect.Uint64: {Code: "Uint64", Bits: 64, Unsigned: true},
 	}
 
 	keys := make([]reflect.Kind, 0, len(types))
@@ -106,20 +107,25 @@ func generateIntegerTypes(dst io.Writer) error {
 		fmt.Fprintf(dst, "\n*v = %s(code)", typ)
 		fmt.Fprintf(dst, "\nreturn nil")
 		fmt.Fprintf(dst, "\n}")
-		fmt.Fprintf(dst, "\n\nif code != %s.Byte() {", data.Code)
-		fmt.Fprintf(dst, "\nreturn errors.Errorf(`msgpack: expected %s, got %%s`, Code(code))", data.Code)
-		fmt.Fprintf(dst, "\n}")
-		fmt.Fprintf(dst, "\nx, err := d.src.ReadUint%d()", data.Bits)
-		fmt.Fprintf(dst, "\nif err != nil {")
-		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read payload for %s`)", typ)
-		fmt.Fprintf(dst, "\n}")
-		switch typ {
-		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			fmt.Fprintf(dst, "\n\n*v = x")
-		default:
-			fmt.Fprintf(dst, "\n\n*v = %s(x)", typ)
+		// We need to allow numbers with lower bit sizes that fit in this type
+		var baseName string
+		if data.Unsigned {
+			baseName = "Uint"
+		} else {
+			baseName = "Int"
 		}
-		fmt.Fprintf(dst, "\nreturn nil")
+		fmt.Fprintf(dst, "\nswitch Code(code) {")
+		for size := data.Bits; size >= 8; size /= 2 {
+			fmt.Fprintf(dst, "\ncase %s%d:", baseName, size)
+			fmt.Fprintf(dst, "\nx, err := d.src.ReadUint%d()", size)
+			fmt.Fprintf(dst, "\nif err != nil {")
+			fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read payload for %s`)", typ)
+			fmt.Fprintf(dst, "\n}")
+			fmt.Fprintf(dst, "\n*v = %s(x)", typ)
+			fmt.Fprintf(dst, "\nreturn nil")
+		}
+		fmt.Fprintf(dst, "\n}") // end switch Code(code)
+		fmt.Fprintf(dst, "\nreturn errors.Errorf(`msgpack: invalid numeric type %%s for %s`, Code(code))", typ)
 		fmt.Fprintf(dst, "\n}")
 	}
 	return nil

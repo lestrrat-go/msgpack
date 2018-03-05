@@ -42,15 +42,25 @@ func (d *Decoder) PeekCode() (Code, error) {
 	return code, nil
 }
 
+func (d *Decoder) isNil() bool {
+	code, err := d.PeekCode()
+	if err != nil {
+		return false
+	}
+	return code == Nil
+}
+
 func (d *Decoder) DecodeNil(v *interface{}) error {
 	code, err := d.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
 	if code != Nil {
-		return errors.Errorf(`msgpack: expected True/False, got %s`, code)
+		return errors.Errorf(`msgpack: expected Nil, got %s`, code)
 	}
-	*v = nil
+	if v != nil {
+		*v = nil
+	}
 	return nil
 }
 
@@ -326,7 +336,9 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 	}
 
 	if size == -1 {
-		rv.Set(reflect.Value{})
+		if rv.CanSet() {
+			rv.Set(reflect.Value{})
+		}
 		return nil
 	}
 
@@ -348,7 +360,6 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 	}
 
 	var key string
-	var value interface{}
 	for i := 0; i < size; i++ {
 		if err := d.Decode(&key); err != nil {
 			return errors.Wrapf(err, `msgpack: failed to decode struct key at index %d`, i)
@@ -356,6 +367,12 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 
 		f, ok := name2field[key]
 		if !ok {
+			continue
+		}
+		if d.isNil() {
+			if err := d.DecodeNil(nil); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to decode nil field %s`, key)
+			}
 			continue
 		}
 
@@ -376,15 +393,19 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 			}
 			f.Set(r)
 		} else {
-			if err := d.Decode(&value); err != nil {
+			var fv reflect.Value
+			if f.Kind() == reflect.Ptr {
+				fv = reflect.New(f.Type().Elem())
+			} else {
+				fv = reflect.New(f.Type())
+			}
+			if err := d.Decode(fv.Interface()); err != nil {
 				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (not struct/pointer to struct)`, key)
 			}
 
-			fv := reflect.ValueOf(value)
-			if !fv.Type().ConvertibleTo(f.Type()) {
-				return errors.Errorf(`msgpack: cannot convert from %s to %s`, fv.Type(), f.Type())
+			if err := assignIfCompatible(f, fv.Elem()); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to assign struct value for key %s`, key)
 			}
-			f.Set(reflect.ValueOf(value).Convert(f.Type()))
 		}
 	}
 

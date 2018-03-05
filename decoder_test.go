@@ -324,20 +324,43 @@ func TestDecodeArray(t *testing.T) {
 }
 
 func TestDecodeNestedStruct(t *testing.T) {
-	var e *nestedOuter = &nestedOuter{
-		InnerStruct: &nestedInner{Foo: "Hello"},
-		InnerSlice: []*nestedInner{
-			&nestedInner{Foo: "World"},
-		},
-	}
+	t.Run("regular case", func(t *testing.T) {
+		var e *nestedOuter = &nestedOuter{
+			InnerStruct: &nestedInner{Foo: "Hello"},
+			InnerSlice: []*nestedInner{
+				&nestedInner{Foo: "World"},
+			},
+		}
 
-	buf, err := msgpack.Marshal(e)
-	if !assert.NoError(t, err, "Marshal should succeed") {
-		return
-	}
+		buf, err := msgpack.Marshal(e)
+		if !assert.NoError(t, err, "Marshal should succeed") {
+			return
+		}
 
-	var r nestedOuter
-	if !assert.NoError(t, msgpack.Unmarshal(buf, &r), "Unmarshal should succeed") {
-		return
-	}
+		var r nestedOuter
+		if !assert.NoError(t, msgpack.Unmarshal(buf, &r), "Unmarshal should succeed") {
+			return
+		}
+
+	})
+	t.Run("unitinialized case", func(t *testing.T) {
+		var e *nestedOuter = &nestedOuter{
+			InnerSlice: []*nestedInner{
+				&nestedInner{Foo: "World"},
+			},
+		}
+
+		buf, err := msgpack.Marshal(e)
+		if !assert.NoError(t, err, "Marshal should succeed") {
+			return
+		}
+
+		var r nestedOuter
+		if !assert.NoError(t, msgpack.Unmarshal(buf, &r), "Unmarshal should succeed") {
+			return
+		}
+		if !assert.Nil(t, r.InnerStruct, "r.InnerStruct should be nil") {
+			return
+		}
+	})
 }
