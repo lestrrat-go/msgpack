@@ -326,7 +326,9 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 	}
 
 	if size == -1 {
-		rv.Set(reflect.Value{})
+		if rv.CanSet() {
+			rv.Set(reflect.Value{})
+		}
 		return nil
 	}
 
@@ -348,7 +350,6 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 	}
 
 	var key string
-	var value interface{}
 	for i := 0; i < size; i++ {
 		if err := d.Decode(&key); err != nil {
 			return errors.Wrapf(err, `msgpack: failed to decode struct key at index %d`, i)
@@ -376,15 +377,19 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 			}
 			f.Set(r)
 		} else {
-			if err := d.Decode(&value); err != nil {
+			var fv reflect.Value
+			if f.Kind() == reflect.Ptr {
+				fv = reflect.New(f.Type().Elem())
+			} else {
+				fv = reflect.New(f.Type())
+			}
+			if err := d.Decode(fv.Interface()); err != nil {
 				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (not struct/pointer to struct)`, key)
 			}
 
-			fv := reflect.ValueOf(value)
-			if !fv.Type().ConvertibleTo(f.Type()) {
-				return errors.Errorf(`msgpack: cannot convert from %s to %s`, fv.Type(), f.Type())
+			if err := assignIfCompatible(f, fv.Elem()); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to assign struct value for key %s`, key)
 			}
-			f.Set(reflect.ValueOf(value).Convert(f.Type()))
 		}
 	}
 
