@@ -322,3 +322,22 @@ func TestDecodeArray(t *testing.T) {
 		return
 	}
 }
+
+func TestDecodeNestedStruct(t *testing.T) {
+	var e *nestedOuter = &nestedOuter{
+		InnerStruct: &nestedInner{Foo: "Hello"},
+		InnerSlice: []*nestedInner{
+			&nestedInner{Foo: "World"},
+		},
+	}
+
+	buf, err := msgpack.Marshal(e)
+	if !assert.NoError(t, err, "Marshal should succeed") {
+		return
+	}
+
+	var r nestedOuter
+	if !assert.NoError(t, msgpack.Unmarshal(buf, &r), "Unmarshal should succeed") {
+		return
+	}
+}

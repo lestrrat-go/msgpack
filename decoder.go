@@ -228,7 +228,15 @@ func (d *Decoder) DecodeArray(v interface{}) error {
 
 	slice := reflect.MakeSlice(rv.Type(), size, size)
 	for i := 0; i < size; i++ {
-		if err := d.Decode(slice.Index(i).Addr().Interface()); err != nil {
+		e := slice.Index(i)
+		if e.Kind() == reflect.Ptr {
+			if e.IsNil() {
+				e.Set(reflect.New(e.Type().Elem()))
+			}
+		} else {
+			e = e.Addr()
+		}
+		if err := d.Decode(e.Interface()); err != nil {
 			return errors.Wrapf(err, `msgpack: failed to decode array element %d`, i)
 		}
 	}
@@ -481,9 +489,6 @@ var emptyInterfaceType = reflect.TypeOf((*interface{})(nil)).Elem()
 // that was unmarshaled from the stream.
 //
 // If the variable is a non-pointer or nil, an error is returned.
-//
-// For maps and arrays, we can only accept `interface{}`, or `[]interface{}`
-// and `map[string]interface{}` as our argument.
 func (d *Decoder) Decode(v interface{}) error {
 	rv := reflect.ValueOf(v)
 
