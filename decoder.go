@@ -42,15 +42,25 @@ func (d *Decoder) PeekCode() (Code, error) {
 	return code, nil
 }
 
+func (d *Decoder) isNil() bool {
+	code, err := d.PeekCode()
+	if err != nil {
+		return false
+	}
+	return code == Nil
+}
+
 func (d *Decoder) DecodeNil(v *interface{}) error {
 	code, err := d.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
 	if code != Nil {
-		return errors.Errorf(`msgpack: expected True/False, got %s`, code)
+		return errors.Errorf(`msgpack: expected Nil, got %s`, code)
 	}
-	*v = nil
+	if v != nil {
+		*v = nil
+	}
 	return nil
 }
 
@@ -357,6 +367,12 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 
 		f, ok := name2field[key]
 		if !ok {
+			continue
+		}
+		if d.isNil() {
+			if err := d.DecodeNil(nil); err != nil {
+				return errors.Wrapf(err, `msgpack: failed to decode nil field %s`, key)
+			}
 			continue
 		}
 
