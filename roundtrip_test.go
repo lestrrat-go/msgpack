@@ -10,6 +10,9 @@ import (
 )
 
 func TestRoundTrip(t *testing.T) {
+	a := 1
+	b := 2
+	c := 3
 	var list = []interface{}{
 		int8(-31),
 		int8(127),
@@ -26,6 +29,7 @@ func TestRoundTrip(t *testing.T) {
 		"Hello, World!",
 		[]byte("Hello, World!"),
 		[]string{"uno", "dos", "tres"},
+		[]*int{ &a, &b, &c },
 	}
 
 	for _, data := range list {

@@ -343,15 +343,15 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 
 		if f.Kind() == reflect.Struct {
 			if err := d.Decode(f.Addr().Interface()); err != nil {
-				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (struct)`, key)
 			}
 		} else if f.Kind() == reflect.Ptr && f.Type().Elem().Kind() == reflect.Struct {
 			if err := d.Decode(f.Interface()); err != nil {
-				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (pointer to struct)`, key)
 			}
 		} else {
 			if err := d.Decode(&value); err != nil {
-				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s`, key)
+				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (not struct/pointer to struct)`, key)
 			}
 
 			fv := reflect.ValueOf(value)
@@ -363,6 +363,19 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 	}
 
 	return nil
+}
+
+func assignIfCompatible(dst, src reflect.Value) bool {
+	if src.Type().AssignableTo(dst.Type()) {
+		dst.Set(src)
+		return true
+	}
+
+	if src.Type().ConvertibleTo(dst.Type()) {
+		dst.Set(src.Convert(dst.Type()))
+		return true
+	}
+	return false
 }
 
 var emptyInterfaceType = reflect.TypeOf((*interface{})(nil)).Elem()
@@ -468,8 +481,7 @@ FromCode:
 	dst := rv.Elem()
 
 	// If it's assignable, assign, and we're done.
-	if dv.Type().AssignableTo(dst.Type()) {
-		dst.Set(dv)
+	if assignIfCompatible(dst, dv) {
 		return nil
 	}
 
@@ -478,23 +490,37 @@ FromCode:
 		if dv.Type().Elem() == emptyInterfaceType {
 			slice := reflect.MakeSlice(dst.Type(), dv.Len(), dv.Len())
 			sliceElemType := dst.Type().Elem() // []string -> string
+			isSliceElemPtr := dst.Type().Elem().Kind() == reflect.Ptr
+
 			// See if we can install dv's contents into dst
+SLICE:
 			for i := 0; i < dv.Len(); i++ {
 				e := dv.Index(i)
-				if sliceElemType != e.Elem().Type() {
-					return errors.Errorf(`cannot assign slice element on index %d (slice type = %s, element type = %s)`, i, dst.Type(), e.Elem().Type())
+
+				switch {
+				case sliceElemType == e.Elem().Type():
+					if assignIfCompatible(slice.Index(i), e.Elem()) {
+						continue SLICE
+					}
+				case isSliceElemPtr:
+					if sliceElemType.Elem() == e.Elem().Type() {
+						if assignIfCompatible(slice.Index(i), e.Elem().Addr()) {
+							continue SLICE
+						}
+					} else if e.Elem().Type().ConvertibleTo(sliceElemType.Elem()) {
+						v := reflect.New(sliceElemType.Elem())
+						v.Elem().Set(e.Elem().Convert(sliceElemType.Elem()))
+						if assignIfCompatible(slice.Index(i), v) {
+							continue SLICE
+						}
+					}
 				}
-				slice.Index(i).Set(e.Elem())
+
+				return errors.Errorf(`cannot assign slice element on index %d (slice type = %s, element type = %s)`, i, dst.Type(), e.Elem().Type())
 			}
 			dst.Set(slice)
 			return nil
 		}
-	}
-
-	// Can we convert it then?
-	if dv.Type().ConvertibleTo(dst.Type()) {
-		dst.Set(dv.Convert(dst.Type()))
-		return nil
 	}
 
 	// This could only happen if we have a decoder that creates

@@ -56,42 +56,56 @@ func (e *Encoder) Writer() Writer {
 	return e.dst
 }
 
-func (e *Encoder) Encode(v interface{}) error {
+func (e *Encoder) encodeBuiltin(v interface{}) (error, bool) {
 	switch v := v.(type) {
 	case string:
-		return e.EncodeString(v)
+		return e.EncodeString(v), true
 	case []byte:
-		return e.EncodeBytes(v)
+		return e.EncodeBytes(v), true
 	case bool:
-		return e.EncodeBool(v)
+		return e.EncodeBool(v), true
 	case float32:
-		return e.EncodeFloat32(v)
+		return e.EncodeFloat32(v), true
 	case float64:
-		return e.EncodeFloat64(v)
+		return e.EncodeFloat64(v), true
 	case uint:
-		return e.EncodeUint64(uint64(v))
+		return e.EncodeUint64(uint64(v)), true
 	case uint8:
-		return e.EncodeUint8(v)
+		return e.EncodeUint8(v), true
 	case uint16:
-		return e.EncodeUint16(v)
+		return e.EncodeUint16(v), true
 	case uint32:
-		return e.EncodeUint32(v)
+		return e.EncodeUint32(v), true
 	case uint64:
-		return e.EncodeUint64(v)
+		return e.EncodeUint64(v), true
 	case int:
-		return e.EncodeInt64(int64(v))
+		return e.EncodeInt64(int64(v)), true
 	case int8:
-		return e.EncodeInt8(v)
+		return e.EncodeInt8(v), true
 	case int16:
-		return e.EncodeInt16(v)
+		return e.EncodeInt16(v), true
 	case int32:
-		return e.EncodeInt32(v)
+		return e.EncodeInt32(v), true
 	case int64:
-		return e.EncodeInt64(v)
+		return e.EncodeInt64(v), true
+	}
+
+	return nil, false
+}
+
+func (e *Encoder) Encode(v interface{}) error {
+	if err, ok := e.encodeBuiltin(v); ok {
+		return err
 	}
 
 	// Find the first non-pointer, non-interface{}
 	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr && rv.Elem().IsValid() {
+		if err, ok := e.encodeBuiltin(rv.Elem().Interface()); ok {
+			return err
+		}
+	}
+
 INDIRECT:
 	for {
 		if !rv.IsValid() {
