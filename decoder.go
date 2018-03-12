@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"reflect"
+	"time"
 
 	bufferpool "github.com/lestrrat-go/bufferpool"
 	"github.com/pkg/errors"
@@ -319,9 +320,35 @@ func (d *Decoder) DecodeMap(v *map[string]interface{}) error {
 	return nil
 }
 
+func (d *Decoder) DecodeTime(v *time.Time) error {
+	var size int
+	if err := d.DecodeArrayLength(&size); err != nil {
+		return errors.Wrap(err, `msgpack: failed to decode array length for time.Time`)
+	}
+	if size != 2 {
+		return errors.Errorf(`msgpack: expected array of size 2 (got %d)`, size)
+	}
+
+	var seconds int64
+	if err := d.DecodeInt64(&seconds); err != nil {
+		return errors.Wrap(err, `msgpack: failed to decode seconds part for time.Time`)
+	}
+	var nanosecs int
+	if err := d.DecodeInt(&nanosecs); err != nil {
+		return errors.Wrap(err, `msgpack: failed to decode nanoseconds part for time.Time`)
+	}
+
+	*v = time.Unix(seconds, int64(nanosecs))
+	return nil
+}
+
 func (d *Decoder) DecodeStruct(v interface{}) error {
 	if v, ok := v.(DecodeMsgpacker); ok {
 		return d.DecodeExt(v)
+	}
+
+	if v, ok := v.(*time.Time); ok {
+		return d.DecodeTime(v)
 	}
 
 	var size int
