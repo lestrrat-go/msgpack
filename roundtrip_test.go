@@ -4,6 +4,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 
 	msgpack "github.com/lestrrat-go/msgpack"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,8 @@ func TestRoundTrip(t *testing.T) {
 		"Hello, World!",
 		[]byte("Hello, World!"),
 		[]string{"uno", "dos", "tres"},
-		[]*int{ &a, &b, &c },
+		[]*int{&a, &b, &c},
+		time.Now().Round(0),
 	}
 
 	for _, data := range list {

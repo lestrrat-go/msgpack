@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -417,6 +418,18 @@ LOOP:
 	return name, omitempty
 }
 
+// EncodeTime encodes time.Time as a sequence of two integers
+func (e *Encoder) EncodeTime(t time.Time) error {
+	e.dst.WriteByte(FixArray0.Byte() + byte(2))
+	if err := e.EncodeInt64(t.Unix()); err != nil {
+		return errors.Wrap(err, `msgpack: failed to encode seconds for time.Time`)
+	}
+	if err := e.EncodeInt(t.Nanosecond()); err != nil {
+		return errors.Wrap(err, `msgpack: failed to encode nanoseconds for time.Time`)
+	}
+	return nil
+}
+
 // EncodeStruct encodes a struct value as a map object.
 func (e *Encoder) EncodeStruct(v interface{}) error {
 	rv := reflect.ValueOf(v)
@@ -430,6 +443,11 @@ func (e *Encoder) EncodeStruct(v interface{}) error {
 
 	if v, ok := v.(EncodeMsgpacker); ok {
 		return v.EncodeMsgpack(e)
+	}
+
+	// Special case
+	if v, ok := v.(time.Time); ok {
+		return e.EncodeTime(v)
 	}
 
 	if rv.Kind() != reflect.Struct {
