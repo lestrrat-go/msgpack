@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type stringList []string
+type dummyStruct struct {
+	Message string
+}
+type dummyStructList []*dummyStruct
+
 func TestRoundTrip(t *testing.T) {
 	a := 1
 	b := 2
@@ -30,8 +36,15 @@ func TestRoundTrip(t *testing.T) {
 		"Hello, World!",
 		[]byte("Hello, World!"),
 		[]string{"uno", "dos", "tres"},
+		stringList{"uno", "dos", "tres"},
+		dummyStructList{
+			{ Message: "uno" },
+			{ Message: "dos" },
+			{ Message: "tres" },
+		},
 		[]*int{&a, &b, &c},
 		time.Now().Round(0),
+		&dummyStruct{ Message: "Hello World!" },
 	}
 
 	for _, data := range list {

@@ -282,7 +282,7 @@ func (e *Encoder) EncodeArray(v interface{}) error {
 
 	switch rv.Type().Elem().Kind() {
 	case reflect.String:
-		return e.encodeArrayString(v)
+		return e.encodeArrayString(rv.Convert(reflect.TypeOf([]string{})).Interface())
 	case reflect.Bool:
 		return e.encodeArrayBool(v)
 	case reflect.Int:
