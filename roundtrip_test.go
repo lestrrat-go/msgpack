@@ -44,7 +44,7 @@ func TestRoundTrip(t *testing.T) {
 		},
 		[]*int{&a, &b, &c},
 		time.Now().Round(0),
-		&dummyStruct{ Message: "Hello World!" },
+		dummyStruct{ Message: "Hello World!" },
 	}
 
 	for _, data := range list {
