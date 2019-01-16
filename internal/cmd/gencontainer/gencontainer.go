@@ -73,7 +73,7 @@ func _main() error {
 		fmt.Fprintf(&buf, "\n\nfunc (e *Encoder) encodeArray%s(in interface{}) error {", ucfirst(typ.String()))
 		fmt.Fprintf(&buf, "\nfor k, v := range in.([]%s) {", typ)
 		buf.WriteString("\nif err := e.Encode(v); err != nil {")
-		buf.WriteString("\nreturn errors.Wrapf(err, `failed to encode value for %s`, k)")
+		buf.WriteString("\nreturn errors.Wrapf(err, `failed to encode value for element %d`, k)")
 		buf.WriteString("\n}")
 		buf.WriteString("\n}")
 		buf.WriteString("\nreturn nil")
