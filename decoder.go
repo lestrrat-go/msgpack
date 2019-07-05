@@ -110,12 +110,12 @@ func (d *Decoder) DecodeBytes(v *[]byte) error {
 		}
 		l = int64(v)
 	default:
-		return errors.Wrapf(err, `msgpack: invalid code: expected Bin8/Bin16/Bin32, got %s`, code)
+		return errors.Errorf(`msgpack: invalid code: expected Bin8/Bin16/Bin32, got %s`, code)
 	}
 
 	// Sanity check
 	if l < 0 {
-		return errors.Wrapf(err, `msgpack: invalid byte slice length %d`, l)
+		return errors.Errorf(`msgpack: invalid byte slice length %d`, l)
 	}
 
 	b := make([]byte, l)
@@ -160,12 +160,12 @@ func (d *Decoder) DecodeString(s *string) error {
 		}
 		l = int64(v)
 	default:
-		return errors.Wrapf(err, `msgpack: invalid code: expected FixStr/Str8/Str16/Str32, got %s`, code)
+		return errors.Errorf(`msgpack: invalid code: expected FixStr/Str8/Str16/Str32, got %s`, code)
 	}
 
 	// Sanity check
 	if l < 0 {
-		return errors.Wrapf(err, `msgpack: invalid string length %d`, l)
+		return errors.Errorf(`msgpack: invalid string length %d`, l)
 	}
 
 	// Read the contents of the string.
@@ -521,7 +521,7 @@ func assignIfCompatible(dst, src reflect.Value) (err error) {
 						}
 					}
 
-					return errors.Wrapf(assignErr, `msgpack: cannot assign slice element on index %d (slice type = %s, element type = %s)`, i, dst.Type(), e.Elem().Type())
+					return errors.Errorf(`msgpack: cannot assign slice element on index %d (slice type = %s, element type = %s)`, i, dst.Type(), e.Elem().Type())
 				}
 				dst.Set(slice)
 				return nil
