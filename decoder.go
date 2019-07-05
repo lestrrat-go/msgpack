@@ -521,7 +521,7 @@ func assignIfCompatible(dst, src reflect.Value) (err error) {
 						}
 					}
 
-					return errors.Errorf(`msgpack: cannot assign slice element on index %d (slice type = %s, element type = %s)`, i, dst.Type(), e.Elem().Type())
+					return errors.Wrapf(err, `msgpack: cannot assign slice element on index %d (slice type = %s, element type = %s)`, i, dst.Type(), e.Elem().Type())
 				}
 				dst.Set(slice)
 				return nil
