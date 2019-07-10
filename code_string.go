@@ -2,7 +2,111 @@
 
 package msgpack
 
-import "fmt"
+import "strconv"
+
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[InvalidCode-0]
+	_ = x[FixMap0-128]
+	_ = x[FixMap1-129]
+	_ = x[FixMap2-130]
+	_ = x[FixMap3-131]
+	_ = x[FixMap4-132]
+	_ = x[FixMap5-133]
+	_ = x[FixMap6-134]
+	_ = x[FixMap7-135]
+	_ = x[FixMap8-136]
+	_ = x[FixMap9-137]
+	_ = x[FixMap10-138]
+	_ = x[FixMap11-139]
+	_ = x[FixMap12-140]
+	_ = x[FixMap13-141]
+	_ = x[FixMap14-142]
+	_ = x[FixMap15-143]
+	_ = x[FixArray0-144]
+	_ = x[FixArray1-145]
+	_ = x[FixArray2-146]
+	_ = x[FixArray3-147]
+	_ = x[FixArray4-148]
+	_ = x[FixArray5-149]
+	_ = x[FixArray6-150]
+	_ = x[FixArray7-151]
+	_ = x[FixArray8-152]
+	_ = x[FixArray9-153]
+	_ = x[FixArray10-154]
+	_ = x[FixArray11-155]
+	_ = x[FixArray12-156]
+	_ = x[FixArray13-157]
+	_ = x[FixArray14-158]
+	_ = x[FixArray15-159]
+	_ = x[NegFixedNumLow-224]
+	_ = x[FixStr0-160]
+	_ = x[FixStr1-161]
+	_ = x[FixStr2-162]
+	_ = x[FixStr3-163]
+	_ = x[FixStr4-164]
+	_ = x[FixStr5-165]
+	_ = x[FixStr6-166]
+	_ = x[FixStr7-167]
+	_ = x[FixStr8-168]
+	_ = x[FixStr9-169]
+	_ = x[FixStr10-170]
+	_ = x[FixStr11-171]
+	_ = x[FixStr12-172]
+	_ = x[FixStr13-173]
+	_ = x[FixStr14-174]
+	_ = x[FixStr15-175]
+	_ = x[FixStr16-176]
+	_ = x[FixStr17-177]
+	_ = x[FixStr18-178]
+	_ = x[FixStr19-179]
+	_ = x[FixStr20-180]
+	_ = x[FixStr21-181]
+	_ = x[FixStr22-182]
+	_ = x[FixStr23-183]
+	_ = x[FixStr24-184]
+	_ = x[FixStr25-185]
+	_ = x[FixStr26-186]
+	_ = x[FixStr27-187]
+	_ = x[FixStr28-188]
+	_ = x[FixStr29-189]
+	_ = x[FixStr30-190]
+	_ = x[FixStr31-191]
+	_ = x[Nil-192]
+	_ = x[False-194]
+	_ = x[True-195]
+	_ = x[Bin8-196]
+	_ = x[Bin16-197]
+	_ = x[Bin32-198]
+	_ = x[Ext8-199]
+	_ = x[Ext16-200]
+	_ = x[Ext32-201]
+	_ = x[Float-202]
+	_ = x[Double-203]
+	_ = x[Uint8-204]
+	_ = x[Uint16-205]
+	_ = x[Uint32-206]
+	_ = x[Uint64-207]
+	_ = x[Int8-208]
+	_ = x[Int16-209]
+	_ = x[Int32-210]
+	_ = x[Int64-211]
+	_ = x[FixExt1-212]
+	_ = x[FixExt2-213]
+	_ = x[FixExt4-214]
+	_ = x[FixExt8-215]
+	_ = x[FixExt16-216]
+	_ = x[Str8-217]
+	_ = x[Str16-218]
+	_ = x[Str32-219]
+	_ = x[Array16-220]
+	_ = x[Array32-221]
+	_ = x[Map16-222]
+	_ = x[Map32-223]
+	_ = x[FixedArrayMask-15]
+}
 
 const (
 	_Code_name_0 = "InvalidCode"
@@ -12,8 +116,6 @@ const (
 )
 
 var (
-	_Code_index_0 = [...]uint8{0, 11}
-	_Code_index_1 = [...]uint8{0, 14}
 	_Code_index_2 = [...]uint16{0, 7, 14, 21, 28, 35, 42, 49, 56, 63, 70, 78, 86, 94, 102, 110, 118, 127, 136, 145, 154, 163, 172, 181, 190, 199, 208, 218, 228, 238, 248, 258, 268, 275, 282, 289, 296, 303, 310, 317, 324, 331, 338, 346, 354, 362, 370, 378, 386, 394, 402, 410, 418, 426, 434, 442, 450, 458, 466, 474, 482, 490, 498, 506, 514, 517}
 	_Code_index_3 = [...]uint8{0, 5, 9, 13, 18, 23, 27, 32, 37, 42, 48, 53, 59, 65, 71, 75, 80, 85, 90, 97, 104, 111, 118, 126, 130, 135, 140, 147, 154, 159, 164, 178}
 )
@@ -31,6 +133,6 @@ func (i Code) String() string {
 		i -= 194
 		return _Code_name_3[_Code_index_3[i]:_Code_index_3[i+1]]
 	default:
-		return fmt.Sprintf("Code(%d)", i)
+		return "Code(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 }
