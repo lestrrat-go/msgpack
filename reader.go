@@ -24,12 +24,12 @@ func NewReader(r io.Reader) Reader {
 }
 
 func (r *reader) Read(buf []byte) (int, error) {
-	return r.src.Read(buf)
+	return io.ReadFull(r.src, buf)
 }
 
 func (r *reader) ReadByte() (byte, error) {
 	b := r.buf[:1]
-	n, err := r.src.Read(b)
+	n, err := r.Read(b)
 	if n != 1 {
 		return byte(0), errors.Wrap(err, `reader: failed to read byte`)
 	}
@@ -46,7 +46,7 @@ func (r *reader) ReadUint8() (uint8, error) {
 
 func (r *reader) ReadUint16() (uint16, error) {
 	b := r.buf[:2]
-	if _, err := r.src.Read(b); err != nil {
+	if _, err := r.Read(b); err != nil {
 		return uint16(0), errors.Wrap(err, `reader: failed to read uint16`)
 	}
 	return uint16(b[1]) | uint16(b[0])<<8, nil
@@ -54,7 +54,7 @@ func (r *reader) ReadUint16() (uint16, error) {
 
 func (r *reader) ReadUint32() (uint32, error) {
 	b := r.buf[:4]
-	if _, err := r.src.Read(b); err != nil {
+	if _, err := r.Read(b); err != nil {
 		return uint32(0), errors.Wrap(err, `reader: failed to read uint32`)
 	}
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24, nil
@@ -62,7 +62,7 @@ func (r *reader) ReadUint32() (uint32, error) {
 
 func (r *reader) ReadUint64() (uint64, error) {
 	b := r.buf[:8]
-	if _, err := r.src.Read(b); err != nil {
+	if _, err := r.Read(b); err != nil {
 		return uint64(0), errors.Wrap(err, `reader: failed to read uint64`)
 	}
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
@@ -72,7 +72,7 @@ func (r *reader) ReadUint64() (uint64, error) {
 func (r *reader) readbuf(size int) error {
 	b := r.buf[:size]
 	for len(b) > 0 {
-		n, err := r.src.Read(b)
+		n, err := r.Read(b)
 		b = b[n:]
 		if err != nil {
 			return errors.Wrapf(err, `reader: failed to read %d bytes`, size)
