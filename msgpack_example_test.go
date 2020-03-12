@@ -18,7 +18,7 @@ func init() {
 	}
 }
 
-func (t *EventTime) DecodeMsgpack(d *msgpack.Decoder) error {
+func (t *EventTime) DecodeMsgpack(d msgpack.Decoder) error {
 	r := d.Reader()
 	sec, err := r.ReadUint32()
 	if err != nil {
@@ -73,7 +73,7 @@ func (m FluentdMessage) EncodeMsgpack(e *msgpack.Encoder) error {
 	return nil
 }
 
-func (m *FluentdMessage) DecodeMsgpack(e *msgpack.Decoder) error {
+func (m *FluentdMessage) DecodeMsgpack(e msgpack.Decoder) error {
 	var l int
 	if err := e.DecodeArrayLength(&l); err != nil {
 		return errors.Wrap(err, `failed to decode msgpack array length`)

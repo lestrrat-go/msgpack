@@ -8,7 +8,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (d *Decoder) DecodeInt(v *int) error {
+func (d *decoder) DecodeInt(v *int) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeInt(v)
+}
+
+func (d *decoderNL) DecodeInt(v *int) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Int64`)
@@ -50,7 +56,13 @@ func (d *Decoder) DecodeInt(v *int) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for int`, Code(code))
 }
 
-func (d *Decoder) DecodeInt8(v *int8) error {
+func (d *decoder) DecodeInt8(v *int8) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeInt8(v)
+}
+
+func (d *decoderNL) DecodeInt8(v *int8) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Int8`)
@@ -71,7 +83,13 @@ func (d *Decoder) DecodeInt8(v *int8) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for int8`, Code(code))
 }
 
-func (d *Decoder) DecodeInt16(v *int16) error {
+func (d *decoder) DecodeInt16(v *int16) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeInt16(v)
+}
+
+func (d *decoderNL) DecodeInt16(v *int16) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Int16`)
@@ -99,7 +117,13 @@ func (d *Decoder) DecodeInt16(v *int16) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for int16`, Code(code))
 }
 
-func (d *Decoder) DecodeInt32(v *int32) error {
+func (d *decoder) DecodeInt32(v *int32) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeInt32(v)
+}
+
+func (d *decoderNL) DecodeInt32(v *int32) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Int32`)
@@ -134,7 +158,13 @@ func (d *Decoder) DecodeInt32(v *int32) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for int32`, Code(code))
 }
 
-func (d *Decoder) DecodeInt64(v *int64) error {
+func (d *decoder) DecodeInt64(v *int64) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeInt64(v)
+}
+
+func (d *decoderNL) DecodeInt64(v *int64) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Int64`)
@@ -176,7 +206,13 @@ func (d *Decoder) DecodeInt64(v *int64) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for int64`, Code(code))
 }
 
-func (d *Decoder) DecodeUint(v *uint) error {
+func (d *decoder) DecodeUint(v *uint) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeUint(v)
+}
+
+func (d *decoderNL) DecodeUint(v *uint) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Uint64`)
@@ -218,7 +254,13 @@ func (d *Decoder) DecodeUint(v *uint) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for uint`, Code(code))
 }
 
-func (d *Decoder) DecodeUint8(v *uint8) error {
+func (d *decoder) DecodeUint8(v *uint8) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeUint8(v)
+}
+
+func (d *decoderNL) DecodeUint8(v *uint8) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Uint8`)
@@ -239,7 +281,13 @@ func (d *Decoder) DecodeUint8(v *uint8) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for uint8`, Code(code))
 }
 
-func (d *Decoder) DecodeUint16(v *uint16) error {
+func (d *decoder) DecodeUint16(v *uint16) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeUint16(v)
+}
+
+func (d *decoderNL) DecodeUint16(v *uint16) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Uint16`)
@@ -267,7 +315,13 @@ func (d *Decoder) DecodeUint16(v *uint16) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for uint16`, Code(code))
 }
 
-func (d *Decoder) DecodeUint32(v *uint32) error {
+func (d *decoder) DecodeUint32(v *uint32) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeUint32(v)
+}
+
+func (d *decoderNL) DecodeUint32(v *uint32) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Uint32`)
@@ -302,7 +356,13 @@ func (d *Decoder) DecodeUint32(v *uint32) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for uint32`, Code(code))
 }
 
-func (d *Decoder) DecodeUint64(v *uint64) error {
+func (d *decoder) DecodeUint64(v *uint64) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeUint64(v)
+}
+
+func (d *decoderNL) DecodeUint64(v *uint64) error {
 	code, err := d.src.ReadByte()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code for Uint64`)
@@ -344,7 +404,13 @@ func (d *Decoder) DecodeUint64(v *uint64) error {
 	return errors.Errorf(`msgpack: invalid numeric type %s for uint64`, Code(code))
 }
 
-func (d *Decoder) DecodeFloat32(v *float32) error {
+func (d *decoder) DecodeFloat32(v *float32) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeFloat32(v)
+}
+
+func (d *decoderNL) DecodeFloat32(v *float32) error {
 	code, x, err := d.src.ReadByteUint32()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read float32`)
@@ -358,7 +424,13 @@ func (d *Decoder) DecodeFloat32(v *float32) error {
 	return nil
 }
 
-func (d *Decoder) DecodeFloat64(v *float64) error {
+func (d *decoder) DecodeFloat64(v *float64) error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.nl.DecodeFloat64(v)
+}
+
+func (d *decoderNL) DecodeFloat64(v *float64) error {
 	code, x, err := d.src.ReadByteUint64()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read float64`)
