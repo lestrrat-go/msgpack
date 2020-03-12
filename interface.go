@@ -202,6 +202,10 @@ type Encoder struct {
 // Decoder reads serialized data from a source pointed to by
 // an io.Reader, and meterializes the data structure
 type Decoder interface {
+	// Decode takes a pointer to a variable, and populates it with the value
+	// that was unmarshaled from the stream.
+	//
+	// If the variable is a non-pointer or nil, an error is returned.
 	Decode(interface{}) error
 	DecodeArray(interface{}) error
 	DecodeArrayLength(*int) error
@@ -234,7 +238,7 @@ type Decoder interface {
 
 	// SetSource is a utility tool that allows the user to swap out the
 	// reader object the Decoder is reading from, there by saving the
-	// extra cost of re-instantiaion. 
+	// extra cost of re-instantiaion.
 	SetSource(io.Reader)
 }
 

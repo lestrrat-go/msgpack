@@ -28,20 +28,8 @@ func (d *decoderNL) SetSource(r io.Reader) {
 	d.src = NewReader(d.raw)
 }
 
-func (d *decoder) Reader() Reader {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.Reader()
-}
-
 func (d *decoderNL) Reader() Reader {
 	return d.src
-}
-
-func (d *decoder) ReadCode() (Code, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.ReadCode()
 }
 
 func (dnl *decoderNL) ReadCode() (Code, error) {
@@ -51,12 +39,6 @@ func (dnl *decoderNL) ReadCode() (Code, error) {
 	}
 
 	return Code(b), nil
-}
-
-func (d *decoder) PeekCode() (Code, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.PeekCode()
 }
 
 func (dnl *decoderNL) PeekCode() (Code, error) {
@@ -79,12 +61,6 @@ func (dnl *decoderNL) isNil() bool {
 	return code == Nil
 }
 
-func (d *decoder) DecodeNil(v *interface{}) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeNil(v)
-}
-
 func (dnl *decoderNL) DecodeNil(v *interface{}) error {
 	code, err := dnl.ReadCode()
 	if err != nil {
@@ -97,12 +73,6 @@ func (dnl *decoderNL) DecodeNil(v *interface{}) error {
 		*v = nil
 	}
 	return nil
-}
-
-func (d *decoder) DecodeBool(b *bool) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeBool(b)
 }
 
 func (dnl *decoderNL) DecodeBool(b *bool) error {
@@ -121,12 +91,6 @@ func (dnl *decoderNL) DecodeBool(b *bool) error {
 	default:
 		return errors.Errorf(`msgpack: expected True/False, got %s`, code)
 	}
-}
-
-func (d *decoder) DecodeBytes(v *[]byte) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeBytes(v)
 }
 
 func (dnl *decoderNL) DecodeBytes(v *[]byte) error {
@@ -175,12 +139,6 @@ func (dnl *decoderNL) DecodeBytes(v *[]byte) error {
 
 	*v = b
 	return nil
-}
-
-func (d *decoder) DecodeString(s *string) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeString(s)
 }
 
 func (dnl *decoderNL) DecodeString(s *string) error {
@@ -243,12 +201,6 @@ func (dnl *decoderNL) DecodeString(s *string) error {
 	return nil
 }
 
-func (d *decoder) DecodeArrayLength(l *int) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeArrayLength(l)
-}
-
 func (dnl *decoderNL) DecodeArrayLength(l *int) error {
 	code, err := dnl.ReadCode()
 	if err != nil {
@@ -278,12 +230,6 @@ func (dnl *decoderNL) DecodeArrayLength(l *int) error {
 	}
 
 	return nil
-}
-
-func (d *decoder) DecodeArray(v interface{}) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeArray(v)
 }
 
 func (dnl *decoderNL) DecodeArray(v interface{}) error {
@@ -318,12 +264,6 @@ func (dnl *decoderNL) DecodeArray(v interface{}) error {
 
 	rv.Set(slice)
 	return nil
-}
-
-func (d *decoder) DecodeMapLength(l *int) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeMapLength(l)
 }
 
 func (dnl *decoderNL) DecodeMapLength(l *int) error {
@@ -362,12 +302,6 @@ func (dnl *decoderNL) DecodeMapLength(l *int) error {
 	return nil
 }
 
-func (d *decoder) DecodeMap(v *map[string]interface{}) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeMap(v)
-}
-
 func (dnl *decoderNL) DecodeMap(v *map[string]interface{}) error {
 	var size int
 	if err := dnl.DecodeMapLength(&size); err != nil {
@@ -396,12 +330,6 @@ func (dnl *decoderNL) DecodeMap(v *map[string]interface{}) error {
 	return nil
 }
 
-func (d *decoder) DecodeTime(v *time.Time) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeTime(v)
-}
-
 func (dnl *decoderNL) DecodeTime(v *time.Time) error {
 	var size int
 	if err := dnl.DecodeArrayLength(&size); err != nil {
@@ -422,12 +350,6 @@ func (dnl *decoderNL) DecodeTime(v *time.Time) error {
 
 	*v = time.Unix(seconds, int64(nanosecs))
 	return nil
-}
-
-func (d *decoder) DecodeStruct(v interface{}) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeStruct(v)
 }
 
 func (dnl *decoderNL) DecodeStruct(v interface{}) error {
@@ -620,16 +542,6 @@ func assignIfCompatible(dst, src reflect.Value) (err error) {
 }
 
 var emptyInterfaceType = reflect.TypeOf((*interface{})(nil)).Elem()
-
-// Decode takes a pointer to a variable, and populates it with the value
-// that was unmarshaled from the stream.
-//
-// If the variable is a non-pointer or nil, an error is returned.
-func (d *decoder) Decode(v interface{}) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.Decode(v)
-}
 
 func (dnl *decoderNL) Decode(v interface{}) error {
 	rv := reflect.ValueOf(v)
@@ -901,12 +813,6 @@ func (dnl *decoderNL) decodeInterface(v interface{}) (interface{}, error) {
 	}
 }
 
-func (d *decoder) DecodeExtLength(l *int) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeExtLength(l)
-}
-
 func (dnl *decoderNL) DecodeExtLength(l *int) error {
 	code, err := dnl.ReadCode()
 	if err != nil {
@@ -950,12 +856,6 @@ func (dnl *decoderNL) DecodeExtLength(l *int) error {
 	return nil
 }
 
-func (d *decoder) DecodeExt(v DecodeMsgpacker) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeExt(v)
-}
-
 func (dnl *decoderNL) DecodeExt(v DecodeMsgpacker) error {
 	var size int
 	if err := dnl.DecodeExtLength(&size); err != nil {
@@ -975,12 +875,6 @@ func (dnl *decoderNL) DecodeExt(v DecodeMsgpacker) error {
 		return errors.Wrap(err, `msgpack: failed to call DecodeMsgpack`)
 	}
 	return nil
-}
-
-func (d *decoder) DecodeExtType(v *reflect.Type) error {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.nl.DecodeExtType(v)
 }
 
 func (dnl *decoderNL) DecodeExtType(v *reflect.Type) error {
