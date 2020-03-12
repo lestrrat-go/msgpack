@@ -814,25 +814,30 @@ func TestEncodeStruct(t *testing.T) {
 }
 
 func TestEncodeArray(t *testing.T) {
-	var buf bytes.Buffer
-	arrayb := msgpack.NewArrayBuilder()
-	arrayb.Add(int32(100))
-	arrayb.Add("foo")
-	arrayb.Add(float32(0))
-	if !assert.NoError(t, arrayb.Encode(&buf), "Encode should succeed") {
-		return
-	}
-
-	e := buf.Bytes()
-	v := []interface{}{int32(100), "foo", float32(0)}
-	t.Run("encode via Marshal", func(t *testing.T) {
-		b, err := msgpack.Marshal(v)
-		if !assert.NoError(t, err, `Marshal should succeed`) {
+	t.Run("encode []bool", func(t *testing.T) {
+		msgpack.Marshal([]bool{true, false})
+	})
+	t.Run("encode mixed types", func(t *testing.T) {
+		var buf bytes.Buffer
+		arrayb := msgpack.NewArrayBuilder()
+		arrayb.Add(int32(100))
+		arrayb.Add("foo")
+		arrayb.Add(float32(0))
+		if !assert.NoError(t, arrayb.Encode(&buf), "Encode should succeed") {
 			return
 		}
 
-		if !assert.Equal(t, e, b, `Output should match`) {
-			return
-		}
+		e := buf.Bytes()
+		v := []interface{}{int32(100), "foo", float32(0)}
+		t.Run("encode via Marshal", func(t *testing.T) {
+			b, err := msgpack.Marshal(v)
+			if !assert.NoError(t, err, `Marshal should succeed`) {
+				return
+			}
+
+			if !assert.Equal(t, e, b, `Output should match`) {
+				return
+			}
+		})
 	})
 }

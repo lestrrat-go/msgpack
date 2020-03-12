@@ -34,7 +34,7 @@ func (t *EventTime) DecodeMsgpack(d msgpack.Decoder) error {
 	return nil
 }
 
-func (t EventTime) EncodeMsgpack(e *msgpack.Encoder) error {
+func (t EventTime) EncodeMsgpack(e msgpack.Encoder) error {
 	w := e.Writer()
 	if err := w.WriteUint32(uint32(t.Unix())); err != nil {
 		return errors.Wrap(err, `failed to write EventTime seconds payload`)
@@ -54,7 +54,7 @@ type FluentdMessage struct {
 	Option map[string]interface{}
 }
 
-func (m FluentdMessage) EncodeMsgpack(e *msgpack.Encoder) error {
+func (m FluentdMessage) EncodeMsgpack(e msgpack.Encoder) error {
 	if err := e.EncodeArrayHeader(4); err != nil {
 		return errors.Wrap(err, `failed to encode array header`)
 	}

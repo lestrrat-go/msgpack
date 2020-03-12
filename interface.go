@@ -124,8 +124,13 @@ type InvalidDecodeError struct {
 // their own serialization. The objects are responsible for providing
 // the complete msgpack payload, including the code, payload length
 // (if applicable), and payload (if applicable)
+//
+// The Encoder instance that is passed is NOT safe to be used
+// concurrently with other goroutines. DO NOT share it between multiple
+// goroutines, and DO NOT attempt to use it once you return from
+// your DecodeMsgpack method.
 type EncodeMsgpacker interface {
-	EncodeMsgpack(*Encoder) error
+	EncodeMsgpack(Encoder) error
 }
 
 // DecodeMsgpacker is an interface for those objects that provide
@@ -195,7 +200,47 @@ type Reader interface {
 
 // Encoder writes serialized data to a destination pointed to by
 // an io.Writer
-type Encoder struct {
+type Encoder interface {
+	Encode(interface{}) error
+	EncodeArrayHeader(int) error
+	EncodeArray(interface{}) error
+	EncodeBool(bool) error
+	EncodeBytes([]byte) error
+	EncodeExt(EncodeMsgpacker) error
+	EncodeExtHeader(int) error
+	EncodeExtType(EncodeMsgpacker) error
+	EncodeMap(interface{}) error
+	EncodeNegativeFixNum(int8) error
+	EncodeNil() error
+	EncodePositiveFixNum(uint8) error
+	EncodeInt(int) error
+	EncodeInt8(int8) error
+	EncodeInt16(int16) error
+	EncodeInt32(int32) error
+	EncodeInt64(int64) error
+	EncodeUint(uint) error
+	EncodeUint8(uint8) error
+	EncodeUint16(uint16) error
+	EncodeUint32(uint32) error
+	EncodeUint64(uint64) error
+	EncodeFloat32(float32) error
+	EncodeFloat64(float64) error
+	EncodeString(string) error
+	EncodeStruct(interface{}) error
+	Writer() Writer
+
+	// SetDestination is a utility tool that allows the user to swap out the
+	// reader object the Encoder is writing to, there by saving the
+	// extra cost of re-instantiaion.
+	SetDestination(io.Writer)
+}
+
+type encoder struct {
+	nl *encoderNL
+	mu sync.RWMutex
+}
+
+type encoderNL struct {
 	dst Writer
 }
 

@@ -17,7 +17,19 @@ import (
 // Note that Encoders are NEVER meant to be shared concurrently
 // between goroutines. You DO NOT write serialized data concurrently
 // to the same destination.
-func NewEncoder(w io.Writer) *Encoder {
+func NewEncoder(w io.Writer) Encoder {
+	enc := &encoder{ nl: &encoderNL{} }
+	enc.nl.SetDestination(w)
+	return enc
+}
+
+func (d *decoder) SetDestination(r io.Writer) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.nl.SetDestination(r)
+}
+
+func (enl *encoderNL) SetDestination(w io.Writer) {
 	var dst Writer
 	if x, ok := w.(Writer); ok {
 		dst = x
@@ -25,9 +37,7 @@ func NewEncoder(w io.Writer) *Encoder {
 		dst = NewWriter(w)
 	}
 
-	return &Encoder{
-		dst: dst,
-	}
+	enl.dst = dst
 }
 
 func inPositiveFixNumRange(i int64) bool {
@@ -53,11 +63,11 @@ func isEncodeMsgpacker(t reflect.Type) bool {
 	return t.Implements(encodeMsgpackerType)
 }
 
-func (e *Encoder) Writer() Writer {
+func (e *encoderNL) Writer() Writer {
 	return e.dst
 }
 
-func (e *Encoder) encodeBuiltin(v interface{}) (error, bool) {
+func (e *encoderNL) encodeBuiltin(v interface{}) (error, bool) {
 	switch v := v.(type) {
 	case string:
 		return e.EncodeString(v), true
@@ -94,7 +104,7 @@ func (e *Encoder) encodeBuiltin(v interface{}) (error, bool) {
 	return nil, false
 }
 
-func (e *Encoder) Encode(v interface{}) error {
+func (e *encoderNL) Encode(v interface{}) error {
 	if err, ok := e.encodeBuiltin(v); ok {
 		return err
 	}
@@ -134,7 +144,7 @@ INDIRECT:
 
 	v = rv.Interface()
 	switch rv.Kind() {
-	case reflect.Slice:
+	case reflect.Slice: // , reflect.Array:
 		return e.EncodeArray(v)
 	case reflect.Map:
 		return e.EncodeMap(v)
@@ -145,19 +155,19 @@ INDIRECT:
 	return errors.Errorf(`msgpack: encode unimplemented for type %s`, rv.Type())
 }
 
-func (e *Encoder) encodePositiveFixNum(i uint8) error {
+func (e *encoderNL) encodePositiveFixNum(i uint8) error {
 	return e.dst.WriteByte(byte(i))
 }
 
-func (e *Encoder) encodeNegativeFixNum(i int8) error {
+func (e *encoderNL) encodeNegativeFixNum(i int8) error {
 	return e.dst.WriteByte(byte(i))
 }
 
-func (e *Encoder) EncodeNil() error {
+func (e *encoderNL) EncodeNil() error {
 	return e.dst.WriteByte(Nil.Byte())
 }
 
-func (e *Encoder) EncodeBool(b bool) error {
+func (e *encoderNL) EncodeBool(b bool) error {
 	var code Code
 	if b {
 		code = True
@@ -167,7 +177,7 @@ func (e *Encoder) EncodeBool(b bool) error {
 	return e.dst.WriteByte(code.Byte())
 }
 
-func (e *Encoder) EncodePositiveFixNum(i uint8) error {
+func (e *encoderNL) EncodePositiveFixNum(i uint8) error {
 	panic(fmt.Sprintf("fuck fixnum i = %d, max = %d", i, uint8(MaxPositiveFixNum)))
 
 	if i > uint8(MaxPositiveFixNum) || i < 0 {
@@ -180,7 +190,7 @@ func (e *Encoder) EncodePositiveFixNum(i uint8) error {
 	return nil
 }
 
-func (e *Encoder) EncodeNegativeFixNum(i int8) error {
+func (e *encoderNL) EncodeNegativeFixNum(i int8) error {
 	if i < -31 || i >= 0 {
 		return errors.Errorf(`msgpack: value %d is not in range for positive FixNum (0 > x >= -31)`, i)
 	}
@@ -191,7 +201,7 @@ func (e *Encoder) EncodeNegativeFixNum(i int8) error {
 	return nil
 }
 
-func (e *Encoder) EncodeBytes(b []byte) error {
+func (e *encoderNL) EncodeBytes(b []byte) error {
 	l := len(b)
 
 	var w int
@@ -217,7 +227,7 @@ func (e *Encoder) EncodeBytes(b []byte) error {
 	return nil
 }
 
-func (e *Encoder) EncodeString(s string) error {
+func (e *encoderNL) EncodeString(s string) error {
 	l := len(s)
 	switch {
 	case l < 32:
@@ -239,7 +249,7 @@ func (e *Encoder) EncodeString(s string) error {
 	return nil
 }
 
-func (e *Encoder) writePreamble(code Code, w int, l int) error {
+func (e *encoderNL) writePreamble(code Code, w int, l int) error {
 	if err := e.dst.WriteByte(code.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write code`)
 	}
@@ -261,14 +271,14 @@ func (e *Encoder) writePreamble(code Code, w int, l int) error {
 	return nil
 }
 
-func (e *Encoder) EncodeArrayHeader(l int) error {
+func (e *encoderNL) EncodeArrayHeader(l int) error {
 	if err := WriteArrayHeader(e.dst, l); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write array header`)
 	}
 	return nil
 }
 
-func (e *Encoder) EncodeArray(v interface{}) error {
+func (e *encoderNL) EncodeArray(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
@@ -319,7 +329,7 @@ func (e *Encoder) EncodeArray(v interface{}) error {
 	return nil
 }
 
-func (e *Encoder) EncodeMap(v interface{}) error {
+func (e *encoderNL) EncodeMap(v interface{}) error {
 	rv := reflect.ValueOf(v)
 
 	if !rv.IsValid() {
@@ -419,7 +429,7 @@ LOOP:
 }
 
 // EncodeTime encodes time.Time as a sequence of two integers
-func (e *Encoder) EncodeTime(t time.Time) error {
+func (e *encoderNL) EncodeTime(t time.Time) error {
 	e.dst.WriteByte(FixArray0.Byte() + byte(2))
 	if err := e.EncodeInt64(t.Unix()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to encode seconds for time.Time`)
@@ -431,7 +441,7 @@ func (e *Encoder) EncodeTime(t time.Time) error {
 }
 
 // EncodeStruct encodes a struct value as a map object.
-func (e *Encoder) EncodeStruct(v interface{}) error {
+func (e *encoderNL) EncodeStruct(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if !rv.IsValid() {
 		return e.EncodeNil()
@@ -483,7 +493,7 @@ func (e *Encoder) EncodeStruct(v interface{}) error {
 	return nil
 }
 
-func (e *Encoder) EncodeExtType(v EncodeMsgpacker) error {
+func (e *encoderNL) EncodeExtType(v EncodeMsgpacker) error {
 	t := reflect.TypeOf(v)
 
 	muExtDecode.RLock()
@@ -500,7 +510,7 @@ func (e *Encoder) EncodeExtType(v EncodeMsgpacker) error {
 	return nil
 }
 
-func (e *Encoder) EncodeExt(v EncodeMsgpacker) error {
+func (e *encoderNL) EncodeExt(v EncodeMsgpacker) error {
 	w := newAppendingWriter(9)
 	elocal := NewEncoder(w)
 
@@ -522,7 +532,7 @@ func (e *Encoder) EncodeExt(v EncodeMsgpacker) error {
 	return nil
 }
 
-func (e *Encoder) EncodeExtHeader(l int) error {
+func (e *encoderNL) EncodeExtHeader(l int) error {
 	switch {
 	case l == 1:
 		if err := e.dst.WriteByte(FixExt1.Byte()); err != nil {

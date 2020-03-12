@@ -1,7 +1,7 @@
 //go:generate stringer -type Code
 //go:generate go run internal/cmd/gencontainer/gencontainer.go - encoder_container_gen.go
 //go:generate go run internal/cmd/gendecoder/gendecoder.go
-//go:generate go run internal/cmd/genencoder-numeric/genencoder-numeric.go - encoder_numeric_gen.go
+//go:generate go run internal/cmd/genencoder/genencoder.go
 
 package msgpack
 
