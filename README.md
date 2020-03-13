@@ -29,7 +29,7 @@ func init() {
   }
 }
 
-func (t *EventTime) DecodeMsgpack(d *msgpack.Decoder) error {
+func (t *EventTime) DecodeMsgpack(d msgpack.Decoder) error {
   r := d.Reader()
   sec, err := r.ReadUint32()
   if err != nil {
@@ -45,7 +45,7 @@ func (t *EventTime) DecodeMsgpack(d *msgpack.Decoder) error {
   return nil
 }
 
-func (t EventTime) EncodeMsgpack(e *msgpack.Encoder) error {
+func (t EventTime) EncodeMsgpack(e msgpack.Encoder) error {
   w := e.Writer()
   if err := w.WriteUint32(uint32(t.Unix())); err != nil {
     return errors.Wrap(err, `failed to write EventTime seconds payload`)
@@ -65,7 +65,7 @@ type FluentdMessage struct {
   Option map[string]interface{}
 }
 
-func (m FluentdMessage) EncodeMsgpack(e *msgpack.Encoder) error {
+func (m FluentdMessage) EncodeMsgpack(e msgpack.Encoder) error {
   if err := e.EncodeArrayHeader(4); err != nil {
     return errors.Wrap(err, `failed to encode array header`)
   }
@@ -84,7 +84,7 @@ func (m FluentdMessage) EncodeMsgpack(e *msgpack.Encoder) error {
   return nil
 }
 
-func (m *FluentdMessage) DecodeMsgpack(e *msgpack.Decoder) error {
+func (m *FluentdMessage) DecodeMsgpack(e msgpack.Decoder) error {
   var l int
   if err := e.DecodeArrayLength(&l); err != nil {
     return errors.Wrap(err, `failed to decode msgpack array length`)
@@ -189,14 +189,20 @@ you can create a type that implements the `msgpack.EncodeMsgpacker`
 and/or `msgpack.DecodeMsgpacker` interface.
 
 ```go
-func (v *Object) EncodeMsgpack(e *msgpack.Encoder) error {
+func (v *Object) EncodeMsgpack(e msgpack.Encoder) error {
   ...
 }
 
-func (v *Object) DecodeMsgpack(d *msgpack.Decoder) error {
+func (v *Object) DecodeMsgpack(d msgpack.Decoder) error {
   ...
 }
 ```
+
+Please note that while the Encoder/Decoder instance that you get from
+normal instatiation (`NewEncoder()/NewDecoder()`) are protected by mutexes
+to avoid accidental race conditions by the user, the instances passed to
+these methods above _ARE NOT_ safe to be used concurrently. You should also
+never store these values for later use.
 
 ## Low Level Writer/Reader
 
