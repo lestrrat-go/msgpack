@@ -23,10 +23,10 @@ func NewEncoder(w io.Writer) Encoder {
 	return enc
 }
 
-func (d *decoder) SetDestination(r io.Writer) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.nl.SetDestination(r)
+func (e *encoder) SetDestination(r io.Writer) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.nl.SetDestination(r)
 }
 
 func (enl *encoderNL) SetDestination(w io.Writer) {
