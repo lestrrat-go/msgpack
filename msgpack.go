@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var pool = sync.Pool{
+var appendingWriterPool = sync.Pool{
 	New: allocAppendingWriter,
 }
 
@@ -22,14 +22,26 @@ func allocAppendingWriter() interface{} {
 
 func releaseAppendingWriter(w *appendingWriter) {
 	w.buf = w.buf[0:0]
-	pool.Put(w)
+	appendingWriterPool.Put(w)
+}
+
+var encoderPool = sync.Pool {
+	New: func() interface{} { return NewEncoder(nil) },
+}
+
+func releaseEncoder(e Encoder) {
+	e.SetDestination(nil)
+	encoderPool.Put(e)
 }
 
 // Marshal takes a Go value and serializes it in msgpack format.
 func Marshal(v interface{}) ([]byte, error) {
-	var buf = pool.Get().(*appendingWriter) // newAppendingWriter(9)
+	var buf = appendingWriterPool.Get().(*appendingWriter)
 	defer releaseAppendingWriter(buf)
-	if err := NewEncoder(buf).Encode(v); err != nil {
+
+	var enc = encoderPool.Get().(Encoder)
+	enc.SetDestination(buf)
+	if err := enc.Encode(v); err != nil {
 		return nil, errors.Wrap(err, `failed to marshal`)
 	}
 	return buf.Bytes(), nil

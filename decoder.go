@@ -13,6 +13,15 @@ import (
 // NewDecoder creates a Decoder instance
 func NewDecoder(r io.Reader) Decoder {
 	d := &decoder{nl: &decoderNL{}}
+	d.nl.SetSource(r)
+	return d
+}
+
+// NewDecoderNoLock creates a new Decoder that DOES NOT protect
+// users against accidental race conditions caused by mutators
+// such as `SetSource`. Use at your own peril
+func NewDecoderNoLock(r io.Reader) Decoder {
+	d := &decoderNL{}
 	d.SetSource(r)
 	return d
 }

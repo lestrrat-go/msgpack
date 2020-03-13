@@ -23,6 +23,15 @@ func NewEncoder(w io.Writer) Encoder {
 	return enc
 }
 
+// NewEncoderNoLock creates a new Encoder that DOES NOT protect
+// users against accidental race conditions caused by mutators
+// such as `SetDestination`. Use at your own peril
+func NewEncoderNoLock(w io.Writer) Encoder {
+	enc := &encoderNL{}
+	enc.SetDestination(w)
+	return enc
+}
+
 func (e *encoder) SetDestination(r io.Writer) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
