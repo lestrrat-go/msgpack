@@ -18,8 +18,10 @@ func NewDecoder(r io.Reader) Decoder {
 }
 
 // NewDecoderNoLock creates a new Decoder that DOES NOT protect
-// users against accidental race conditions caused by mutators
-// such as `SetSource`. Use at your own peril
+// users against accidental race conditions caused by concurrent
+// method access. If you have complete control over the usage of
+// this object, then the object returned by this constructor will
+// shorten a whopping 30~50ns per method call. Use at your own peril
 func NewDecoderNoLock(r io.Reader) Decoder {
 	d := &decoderNL{}
 	d.SetSource(r)

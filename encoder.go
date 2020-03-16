@@ -24,8 +24,10 @@ func NewEncoder(w io.Writer) Encoder {
 }
 
 // NewEncoderNoLock creates a new Encoder that DOES NOT protect
-// users against accidental race conditions caused by mutators
-// such as `SetDestination`. Use at your own peril
+// users against accidental race conditions caused by concurrent
+// method access. If you have complete control over the usage of
+// this object, then the object returned by this constructor will
+// shorten a whopping 30~50ns per method call. Use at your own peril
 func NewEncoderNoLock(w io.Writer) Encoder {
 	enc := &encoderNL{}
 	enc.SetDestination(w)
