@@ -227,6 +227,7 @@ type Encoder interface {
 	EncodeFloat64(float64) error
 	EncodeString(string) error
 	EncodeStruct(interface{}) error
+	EncodeTime(time.Time) error
 	Writer() Writer
 
 	// SetDestination is a utility tool that allows the user to swap out the
