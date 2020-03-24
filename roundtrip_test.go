@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	msgpack "github.com/lestrrat-go/msgpack"
+	msgpack "github.com/knocknote/msgpack"
 	"github.com/stretchr/testify/assert"
 )
 
