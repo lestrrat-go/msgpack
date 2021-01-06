@@ -25,13 +25,8 @@ func releaseAppendingWriter(w *appendingWriter) {
 	appendingWriterPool.Put(w)
 }
 
-var encoderPool = sync.Pool {
+var encoderPool = sync.Pool{
 	New: func() interface{} { return NewEncoder(nil) },
-}
-
-func releaseEncoder(e Encoder) {
-	e.SetDestination(nil)
-	encoderPool.Put(e)
 }
 
 // Marshal takes a Go value and serializes it in msgpack format.

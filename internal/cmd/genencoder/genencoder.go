@@ -289,23 +289,23 @@ func generateIntegerTypes(dst io.Writer) error {
 	})
 	for _, typ := range keys {
 		data := types[typ]
-		fmt.Fprintf(dst, "\n\nfunc (e *encoderNL) Encode%s(v %s) error {", util.Ucfirst(typ.String()), typ)
+		fmt.Fprintf(dst, "\n\nfunc (enl *encoderNL) Encode%s(v %s) error {", util.Ucfirst(typ.String()), typ)
 		switch typ {
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			fmt.Fprintf(dst, "\nif inPositiveFixNumRange(int64(v)) {")
-			fmt.Fprintf(dst, "\nreturn e.encodePositiveFixNum(uint8(0xff & v))")
+			fmt.Fprintf(dst, "\nreturn enl.encodePositiveFixNum(uint8(0xff & v))")
 			fmt.Fprintf(dst, "\n}")
 		case reflect.Int8:
 			fmt.Fprintf(dst, "\nif inNegativeFixNumRange(int64(v)) {")
-			fmt.Fprintf(dst, "\nreturn e.encodeNegativeFixNum(v)")
+			fmt.Fprintf(dst, "\nreturn enl.encodeNegativeFixNum(v)")
 			fmt.Fprintf(dst, "\n}")
 		default:
 			fmt.Fprintf(dst, "\nif inNegativeFixNumRange(int64(v)) {")
-			fmt.Fprintf(dst, "\nreturn e.encodeNegativeFixNum(int8(byte(0xff &v)))")
+			fmt.Fprintf(dst, "\nreturn enl.encodeNegativeFixNum(int8(byte(0xff &v)))")
 			fmt.Fprintf(dst, "\n}")
 		}
 
-		fmt.Fprintf(dst, "\n\nif err := e.dst.WriteByteUint%d(%s.Byte(), ", data.Bits, data.Code)
+		fmt.Fprintf(dst, "\n\nif err := enl.dst.WriteByteUint%d(%s.Byte(), ", data.Bits, data.Code)
 		switch typ {
 		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 			fmt.Fprintf(dst, "v")
@@ -332,8 +332,8 @@ func generateFloatTypes(dst io.Writer) error {
 	})
 	for _, typ := range keys {
 		data := types[typ]
-		fmt.Fprintf(dst, "\n\nfunc (e *encoderNL) EncodeFloat%d(f float%d) error {", data.Bits, data.Bits)
-		fmt.Fprintf(dst, "\nif err := e.dst.WriteByteUint%d(%s.Byte(), math.Float%dbits(f)); err != nil {", data.Bits, data.Code, data.Bits)
+		fmt.Fprintf(dst, "\n\nfunc (enl *encoderNL) EncodeFloat%d(f float%d) error {", data.Bits, data.Bits)
+		fmt.Fprintf(dst, "\nif err := enl.dst.WriteByteUint%d(%s.Byte(), math.Float%dbits(f)); err != nil {", data.Bits, data.Code, data.Bits)
 		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to write %s`)", data.Code)
 		fmt.Fprintf(dst, "\n}")
 		fmt.Fprintf(dst, "\nreturn nil")

@@ -56,7 +56,7 @@ func IsFixNumFamily(c Code) bool {
 
 func IsPositiveFixNum(c Code) bool {
 	b := c.Byte()
-	return b>>7 ==0
+	return b>>7 == 0
 }
 
 const negativeFixNumPrefix = 0xe0

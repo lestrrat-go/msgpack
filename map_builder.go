@@ -37,13 +37,24 @@ func WriteMapHeader(dst io.Writer, c int) error {
 
 	switch {
 	case c < 16:
-		w.WriteByte(FixMap0.Byte() + byte(c))
+		if err := w.WriteByte(FixMap0.Byte() + byte(c)); err != nil {
+			return errors.Wrap(err, `failed to write element size prefix`)
+		}
 	case c < math.MaxUint16:
-		w.WriteByte(Map16.Byte())
-		w.WriteUint16(uint16(c))
+		if err := w.WriteByte(Map16.Byte()); err != nil {
+			return errors.Wrap(err, `failed to write 16-bit element size prefix`)
+		}
+		if err := w.WriteUint16(uint16(c)); err != nil {
+			return errors.Wrap(err, `failed to write 16-bit element size`)
+		}
 	case c < math.MaxUint32:
-		w.WriteByte(Map32.Byte())
-		w.WriteUint32(uint32(c))
+		if err := w.WriteByte(Map32.Byte()); err != nil {
+			return errors.Wrap(err, `failed to write 32-bit element size prefix`)
+		}
+
+		if err := w.WriteUint32(uint32(c)); err != nil {
+			return errors.Wrap(err, `failed to write 32-bit element size`)
+		}
 	default:
 		return errors.Errorf(`map builder: map element count out of range (%d)`, c)
 	}
@@ -51,7 +62,9 @@ func WriteMapHeader(dst io.Writer, c int) error {
 }
 
 func (b *mapBuilder) Encode(dst io.Writer) error {
-	WriteMapHeader(dst, b.Count())
+	if err := WriteMapHeader(dst, b.Count()); err != nil {
+		return errors.Wrap(err, `failed to write map header`)
+	}
 
 	e := NewEncoder(dst)
 	for i := 0; i < b.Count(); i++ {

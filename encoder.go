@@ -1,7 +1,6 @@
 package msgpack
 
 import (
-	"fmt"
 	"io"
 	"math"
 	"reflect"
@@ -18,7 +17,7 @@ import (
 // between goroutines. You DO NOT write serialized data concurrently
 // to the same destination.
 func NewEncoder(w io.Writer) Encoder {
-	enc := &encoder{ nl: &encoderNL{} }
+	enc := &encoder{nl: &encoderNL{}}
 	enc.nl.SetDestination(w)
 	return enc
 }
@@ -59,71 +58,68 @@ func inNegativeFixNumRange(i int64) bool {
 	return i >= -31 && i <= -1
 }
 
-func isExtType(t reflect.Type) (int, bool) {
+func isExtType(t reflect.Type) bool {
 	muExtEncode.RLock()
-	typ, ok := extEncodeRegistry[t]
+	_, ok := extEncodeRegistry[t]
 	muExtEncode.RUnlock()
-	if ok {
-		return typ, true
-	}
-
-	return 0, false
+	return ok
 }
 
 func isEncodeMsgpacker(t reflect.Type) bool {
 	return t.Implements(encodeMsgpackerType)
 }
 
-func (e *encoderNL) Writer() Writer {
-	return e.dst
+func (enl *encoderNL) Writer() Writer {
+	return enl.dst
 }
 
-func (e *encoderNL) encodeBuiltin(v interface{}) (error, bool) {
+//nolint:stylecheck,golint
+func (enl *encoderNL) encodeBuiltin(v interface{}) (error, bool) {
 	switch v := v.(type) {
 	case string:
-		return e.EncodeString(v), true
+		return enl.EncodeString(v), true
 	case []byte:
-		return e.EncodeBytes(v), true
+		return enl.EncodeBytes(v), true
 	case bool:
-		return e.EncodeBool(v), true
+		return enl.EncodeBool(v), true
 	case float32:
-		return e.EncodeFloat32(v), true
+		return enl.EncodeFloat32(v), true
 	case float64:
-		return e.EncodeFloat64(v), true
+		return enl.EncodeFloat64(v), true
 	case uint:
-		return e.EncodeUint64(uint64(v)), true
+		return enl.EncodeUint64(uint64(v)), true
 	case uint8:
-		return e.EncodeUint8(v), true
+		return enl.EncodeUint8(v), true
 	case uint16:
-		return e.EncodeUint16(v), true
+		return enl.EncodeUint16(v), true
 	case uint32:
-		return e.EncodeUint32(v), true
+		return enl.EncodeUint32(v), true
 	case uint64:
-		return e.EncodeUint64(v), true
+		return enl.EncodeUint64(v), true
 	case int:
-		return e.EncodeInt64(int64(v)), true
+		return enl.EncodeInt64(int64(v)), true
 	case int8:
-		return e.EncodeInt8(v), true
+		return enl.EncodeInt8(v), true
 	case int16:
-		return e.EncodeInt16(v), true
+		return enl.EncodeInt16(v), true
 	case int32:
-		return e.EncodeInt32(v), true
+		return enl.EncodeInt32(v), true
 	case int64:
-		return e.EncodeInt64(v), true
+		return enl.EncodeInt64(v), true
 	}
 
 	return nil, false
 }
 
-func (e *encoderNL) Encode(v interface{}) error {
-	if err, ok := e.encodeBuiltin(v); ok {
+func (enl *encoderNL) Encode(v interface{}) error {
+	if err, ok := enl.encodeBuiltin(v); ok {
 		return err
 	}
 
 	// Find the first non-pointer, non-interface{}
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Ptr && rv.Elem().IsValid() {
-		if err, ok := e.encodeBuiltin(rv.Elem().Interface()); ok {
+		if err, ok := enl.encodeBuiltin(rv.Elem().Interface()); ok {
 			return err
 		}
 	}
@@ -131,15 +127,15 @@ func (e *encoderNL) Encode(v interface{}) error {
 INDIRECT:
 	for {
 		if !rv.IsValid() {
-			return e.EncodeNil()
+			return enl.EncodeNil()
 		}
 
-		if _, ok := isExtType(rv.Type()); ok {
-			return e.EncodeExt(rv.Interface().(EncodeMsgpacker))
+		if isExtType(rv.Type()) {
+			return enl.EncodeExt(rv.Interface().(EncodeMsgpacker))
 		}
 
 		if ok := isEncodeMsgpacker(rv.Type()); ok {
-			return rv.Interface().(EncodeMsgpacker).EncodeMsgpack(e)
+			return rv.Interface().(EncodeMsgpacker).EncodeMsgpack(enl)
 		}
 		switch rv.Kind() {
 		case reflect.Ptr, reflect.Interface:
@@ -150,69 +146,67 @@ INDIRECT:
 	}
 
 	if !rv.IsValid() {
-		return e.EncodeNil()
+		return enl.EncodeNil()
 	}
 
 	v = rv.Interface()
 	switch rv.Kind() {
 	case reflect.Slice: // , reflect.Array:
-		return e.EncodeArray(v)
+		return enl.EncodeArray(v)
 	case reflect.Map:
-		return e.EncodeMap(v)
+		return enl.EncodeMap(v)
 	case reflect.Struct:
-		return e.EncodeStruct(v)
+		return enl.EncodeStruct(v)
 	}
 
 	return errors.Errorf(`msgpack: encode unimplemented for type %s`, rv.Type())
 }
 
-func (e *encoderNL) encodePositiveFixNum(i uint8) error {
-	return e.dst.WriteByte(byte(i))
+func (enl *encoderNL) encodePositiveFixNum(i uint8) error {
+	return enl.dst.WriteByte(byte(i))
 }
 
-func (e *encoderNL) encodeNegativeFixNum(i int8) error {
-	return e.dst.WriteByte(byte(i))
+func (enl *encoderNL) encodeNegativeFixNum(i int8) error {
+	return enl.dst.WriteByte(byte(i))
 }
 
-func (e *encoderNL) EncodeNil() error {
-	return e.dst.WriteByte(Nil.Byte())
+func (enl *encoderNL) EncodeNil() error {
+	return enl.dst.WriteByte(Nil.Byte())
 }
 
-func (e *encoderNL) EncodeBool(b bool) error {
+func (enl *encoderNL) EncodeBool(b bool) error {
 	var code Code
 	if b {
 		code = True
 	} else {
 		code = False
 	}
-	return e.dst.WriteByte(code.Byte())
+	return enl.dst.WriteByte(code.Byte())
 }
 
-func (e *encoderNL) EncodePositiveFixNum(i uint8) error {
-	panic(fmt.Sprintf("fuck fixnum i = %d, max = %d", i, uint8(MaxPositiveFixNum)))
-
-	if i > uint8(MaxPositiveFixNum) || i < 0 {
+func (enl *encoderNL) EncodePositiveFixNum(i uint8) error {
+	if i > uint8(MaxPositiveFixNum) {
 		return errors.Errorf(`msgpack: value %d is not in range for positive FixNum (127 >= x >= 0)`, i)
 	}
 
-	if err := e.dst.WriteByte(byte(i)); err != nil {
+	if err := enl.dst.WriteByte(byte(i)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write FixNum`)
 	}
 	return nil
 }
 
-func (e *encoderNL) EncodeNegativeFixNum(i int8) error {
+func (enl *encoderNL) EncodeNegativeFixNum(i int8) error {
 	if i < -31 || i >= 0 {
 		return errors.Errorf(`msgpack: value %d is not in range for positive FixNum (0 > x >= -31)`, i)
 	}
 
-	if err := e.dst.WriteByte(byte(i)); err != nil {
+	if err := enl.dst.WriteByte(byte(i)); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write FixNum`)
 	}
 	return nil
 }
 
-func (e *encoderNL) EncodeBytes(b []byte) error {
+func (enl *encoderNL) EncodeBytes(b []byte) error {
 	l := len(b)
 
 	var w int
@@ -231,65 +225,83 @@ func (e *encoderNL) EncodeBytes(b []byte) error {
 		return errors.Errorf(`msgpack: string is too long (len=%d)`, l)
 	}
 
-	if err := e.writePreamble(code, w, l); err != nil {
+	if err := enl.writePreamble(code, w, l); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write []byte preamble`)
 	}
-	e.dst.Write(b)
+	if _, err := enl.dst.Write(b); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write []byte`)
+	}
 	return nil
 }
 
-func (e *encoderNL) EncodeString(s string) error {
+func (enl *encoderNL) EncodeString(s string) error {
 	l := len(s)
 	switch {
 	case l < 32:
-		e.dst.WriteByte(FixStr0.Byte() | uint8(l))
+		if err := enl.dst.WriteByte(FixStr0.Byte() | uint8(l)); err != nil {
+			return errors.Wrap(err, `failed to encode fixed string length`)
+		}
 	case l <= math.MaxUint8:
-		e.dst.WriteByte(Str8.Byte())
-		e.dst.WriteUint8(uint8(l))
+		if err := enl.dst.WriteByte(Str8.Byte()); err != nil {
+			return errors.Wrap(err, `msgpack: failed to encode 8-bit string length prefix`)
+		}
+		if err := enl.dst.WriteUint8(uint8(l)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to encode 8-bit string length`)
+		}
 	case l <= math.MaxUint16:
-		e.dst.WriteByte(Str16.Byte())
-		e.dst.WriteUint16(uint16(l))
+		if err := enl.dst.WriteByte(Str16.Byte()); err != nil {
+			return errors.Wrap(err, `msgpack: failed to encode 16-bit string length prefix`)
+		}
+		if err := enl.dst.WriteUint16(uint16(l)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to encode 16-bit string length`)
+		}
 	case l <= math.MaxUint32:
-		e.dst.WriteByte(Str32.Byte())
-		e.dst.WriteUint32(uint32(l))
+		if err := enl.dst.WriteByte(Str32.Byte()); err != nil {
+			return errors.Wrap(err, `msgpack: failed to encode 32-bit string length prefix`)
+		}
+		if err := enl.dst.WriteUint32(uint32(l)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to encode 32-bit string length`)
+		}
 	default:
 		return errors.Errorf(`msgpack: string is too long (len=%d)`, l)
 	}
 
-	e.dst.WriteString(s)
+	if _, err := enl.dst.WriteString(s); err != nil {
+		return errors.Wrap(err, `msgpack: failed to write string`)
+	}
 	return nil
 }
 
-func (e *encoderNL) writePreamble(code Code, w int, l int) error {
-	if err := e.dst.WriteByte(code.Byte()); err != nil {
+func (enl *encoderNL) writePreamble(code Code, w int, l int) error {
+	if err := enl.dst.WriteByte(code.Byte()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write code`)
 	}
 
 	switch w {
 	case 1:
-		if err := e.dst.WriteUint8(uint8(l)); err != nil {
+		if err := enl.dst.WriteUint8(uint8(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write length`)
 		}
 	case 2:
-		if err := e.dst.WriteUint16(uint16(l)); err != nil {
+		if err := enl.dst.WriteUint16(uint16(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write length`)
 		}
 	case 4:
-		if err := e.dst.WriteUint32(uint32(l)); err != nil {
+		if err := enl.dst.WriteUint32(uint32(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write length`)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) EncodeArrayHeader(l int) error {
-	if err := WriteArrayHeader(e.dst, l); err != nil {
+func (enl *encoderNL) EncodeArrayHeader(l int) error {
+	if err := WriteArrayHeader(enl.dst, l); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write array header`)
 	}
 	return nil
 }
 
-func (e *encoderNL) EncodeArray(v interface{}) error {
+func (enl *encoderNL) EncodeArray(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
@@ -297,54 +309,54 @@ func (e *encoderNL) EncodeArray(v interface{}) error {
 		return errors.Errorf(`msgpack: argument must be an array or a slice`)
 	}
 
-	if err := e.EncodeArrayHeader(rv.Len()); err != nil {
+	if err := enl.EncodeArrayHeader(rv.Len()); err != nil {
 		return err
 	}
 
 	switch rv.Type().Elem().Kind() {
 	case reflect.String:
-		return e.encodeArrayString(rv.Convert(reflect.TypeOf([]string{})).Interface())
+		return enl.encodeArrayString(rv.Convert(reflect.TypeOf([]string{})).Interface())
 	case reflect.Bool:
-		return e.encodeArrayBool(v)
+		return enl.encodeArrayBool(v)
 	case reflect.Int:
-		return e.encodeArrayInt(v)
+		return enl.encodeArrayInt(v)
 	case reflect.Int8:
-		return e.encodeArrayInt8(v)
+		return enl.encodeArrayInt8(v)
 	case reflect.Int16:
-		return e.encodeArrayInt16(v)
+		return enl.encodeArrayInt16(v)
 	case reflect.Int32:
-		return e.encodeArrayInt32(v)
+		return enl.encodeArrayInt32(v)
 	case reflect.Int64:
-		return e.encodeArrayInt64(v)
+		return enl.encodeArrayInt64(v)
 	case reflect.Uint:
-		return e.encodeArrayUint(v)
+		return enl.encodeArrayUint(v)
 	case reflect.Uint8:
-		return e.encodeArrayUint8(v)
+		return enl.encodeArrayUint8(v)
 	case reflect.Uint16:
-		return e.encodeArrayUint16(v)
+		return enl.encodeArrayUint16(v)
 	case reflect.Uint32:
-		return e.encodeArrayUint32(v)
+		return enl.encodeArrayUint32(v)
 	case reflect.Uint64:
-		return e.encodeArrayUint64(v)
+		return enl.encodeArrayUint64(v)
 	case reflect.Float32:
-		return e.encodeArrayFloat32(v)
+		return enl.encodeArrayFloat32(v)
 	case reflect.Float64:
-		return e.encodeArrayFloat64(v)
+		return enl.encodeArrayFloat64(v)
 	}
 
 	for i := 0; i < rv.Len(); i++ {
-		if err := e.Encode(rv.Index(i).Interface()); err != nil {
+		if err := enl.Encode(rv.Index(i).Interface()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write array payload`)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) EncodeMap(v interface{}) error {
+func (enl *encoderNL) EncodeMap(v interface{}) error {
 	rv := reflect.ValueOf(v)
 
 	if !rv.IsValid() {
-		return e.EncodeNil()
+		return enl.EncodeNil()
 	}
 
 	if rv.Kind() != reflect.Map {
@@ -358,7 +370,7 @@ func (e *encoderNL) EncodeMap(v interface{}) error {
 	}
 
 	if rv.IsNil() {
-		return e.EncodeNil()
+		return enl.EncodeNil()
 	}
 
 	if rv.Type().Key().Kind() != reflect.String {
@@ -368,45 +380,47 @@ func (e *encoderNL) EncodeMap(v interface{}) error {
 	// XXX We do NOT use MapBuilder's convenience methods except for the
 	// WriteHeader bit, purely for performance reasons.
 	keys := rv.MapKeys()
-	WriteMapHeader(e.dst, len(keys))
+	if err := WriteMapHeader(enl.dst, len(keys)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to encode map header`)
+	}
 
 	// These are silly fast paths for common cases
 	switch rv.Type().Elem().Kind() {
 	case reflect.String:
-		return e.encodeMapString(v)
+		return enl.encodeMapString(v)
 	case reflect.Bool:
-		return e.encodeMapBool(v)
+		return enl.encodeMapBool(v)
 	case reflect.Uint:
-		return e.encodeMapUint(v)
+		return enl.encodeMapUint(v)
 	case reflect.Uint8:
-		return e.encodeMapUint8(v)
+		return enl.encodeMapUint8(v)
 	case reflect.Uint16:
-		return e.encodeMapUint16(v)
+		return enl.encodeMapUint16(v)
 	case reflect.Uint32:
-		return e.encodeMapUint32(v)
+		return enl.encodeMapUint32(v)
 	case reflect.Uint64:
-		return e.encodeMapUint64(v)
+		return enl.encodeMapUint64(v)
 	case reflect.Int:
-		return e.encodeMapInt(v)
+		return enl.encodeMapInt(v)
 	case reflect.Int8:
-		return e.encodeMapInt8(v)
+		return enl.encodeMapInt8(v)
 	case reflect.Int16:
-		return e.encodeMapInt16(v)
+		return enl.encodeMapInt16(v)
 	case reflect.Int32:
-		return e.encodeMapInt32(v)
+		return enl.encodeMapInt32(v)
 	case reflect.Int64:
-		return e.encodeMapInt64(v)
+		return enl.encodeMapInt64(v)
 	case reflect.Float32:
-		return e.encodeMapFloat32(v)
+		return enl.encodeMapFloat32(v)
 	case reflect.Float64:
-		return e.encodeMapFloat64(v)
+		return enl.encodeMapFloat64(v)
 	default:
 		for _, key := range keys {
-			if err := e.EncodeString(key.Interface().(string)); err != nil {
+			if err := enl.EncodeString(key.Interface().(string)); err != nil {
 				return errors.Wrap(err, `failed to encode map key`)
 			}
 
-			if err := e.Encode(rv.MapIndex(key).Interface()); err != nil {
+			if err := enl.Encode(rv.MapIndex(key).Interface()); err != nil {
 				return errors.Wrap(err, `failed to encode map value`)
 			}
 		}
@@ -414,9 +428,9 @@ func (e *encoderNL) EncodeMap(v interface{}) error {
 	return nil
 }
 
-var tags = []string{`msgpack`, `msg`}
-
 func parseMsgpackTag(rv reflect.StructField) (string, bool) {
+	var tags = []string{`msgpack`, `msg`}
+
 	var name = rv.Name
 	var omitempty bool
 
@@ -440,35 +454,39 @@ LOOP:
 }
 
 // EncodeTime encodes time.Time as a sequence of two integers
-func (e *encoderNL) EncodeTime(t time.Time) error {
-	e.dst.WriteByte(FixArray0.Byte() + byte(2))
-	if err := e.EncodeInt64(t.Unix()); err != nil {
+func (enl *encoderNL) EncodeTime(t time.Time) error {
+	if err := enl.dst.WriteByte(FixArray0.Byte() + byte(2)); err != nil {
+		return errors.Wrap(err, `msgpack: failed to encode time header`)
+	}
+
+	if err := enl.EncodeInt64(t.Unix()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to encode seconds for time.Time`)
 	}
-	if err := e.EncodeInt(t.Nanosecond()); err != nil {
+
+	if err := enl.EncodeInt(t.Nanosecond()); err != nil {
 		return errors.Wrap(err, `msgpack: failed to encode nanoseconds for time.Time`)
 	}
 	return nil
 }
 
 // EncodeStruct encodes a struct value as a map object.
-func (e *encoderNL) EncodeStruct(v interface{}) error {
+func (enl *encoderNL) EncodeStruct(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if !rv.IsValid() {
-		return e.EncodeNil()
+		return enl.EncodeNil()
 	}
 
-	if _, ok := isExtType(rv.Type()); ok {
-		return e.EncodeExt(v.(EncodeMsgpacker))
+	if isExtType(rv.Type()) {
+		return enl.EncodeExt(v.(EncodeMsgpacker))
 	}
 
 	if v, ok := v.(EncodeMsgpacker); ok {
-		return v.EncodeMsgpack(e)
+		return v.EncodeMsgpack(enl)
 	}
 
 	// Special case
 	if v, ok := v.(time.Time); ok {
-		return e.EncodeTime(v)
+		return enl.EncodeTime(v)
 	}
 
 	if rv.Kind() != reflect.Struct {
@@ -498,13 +516,13 @@ func (e *encoderNL) EncodeStruct(v interface{}) error {
 		mapb.Add(name, field.Interface())
 	}
 
-	if err := mapb.Encode(e.dst); err != nil {
+	if err := mapb.Encode(enl.dst); err != nil {
 		return errors.Wrap(err, `msgpack: failed to write map payload`)
 	}
 	return nil
 }
 
-func (e *encoderNL) EncodeExtType(v EncodeMsgpacker) error {
+func (enl *encoderNL) EncodeExtType(v EncodeMsgpacker) error {
 	t := reflect.TypeOf(v)
 
 	muExtDecode.RLock()
@@ -515,13 +533,13 @@ func (e *encoderNL) EncodeExtType(v EncodeMsgpacker) error {
 		return errors.Errorf(`msgpack: type %s has not been registered as an extension`, reflect.TypeOf(v))
 	}
 
-	if err := e.dst.WriteByte(byte(typ)); err != nil {
+	if err := enl.dst.WriteByte(byte(typ)); err != nil {
 		return errors.Wrapf(err, `msgpack: failed to write ext type for %s`, t)
 	}
 	return nil
 }
 
-func (e *encoderNL) EncodeExt(v EncodeMsgpacker) error {
+func (enl *encoderNL) EncodeExt(v EncodeMsgpacker) error {
 	w := newAppendingWriter(9)
 	elocal := NewEncoder(w)
 
@@ -530,10 +548,15 @@ func (e *encoderNL) EncodeExt(v EncodeMsgpacker) error {
 	}
 
 	buf := w.Bytes()
-	e.EncodeExtHeader(len(buf))
-	e.EncodeExtType(v)
+	if err := enl.EncodeExtHeader(len(buf)); err != nil {
+		return errors.Wrap(err, `failed to encode ext header`)
+	}
+	if err := enl.EncodeExtType(v); err != nil {
+		return errors.Wrap(err, `failed to encode ext type`)
+	}
+
 	for b := buf; len(b) > 0; {
-		n, err := e.dst.Write(buf)
+		n, err := enl.dst.Write(buf)
 		b = b[n:]
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to write extension payload`)
@@ -543,38 +566,38 @@ func (e *encoderNL) EncodeExt(v EncodeMsgpacker) error {
 	return nil
 }
 
-func (e *encoderNL) EncodeExtHeader(l int) error {
+func (enl *encoderNL) EncodeExtHeader(l int) error {
 	switch {
 	case l == 1:
-		if err := e.dst.WriteByte(FixExt1.Byte()); err != nil {
+		if err := enl.dst.WriteByte(FixExt1.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext1 code`)
 		}
 	case l == 2:
-		if err := e.dst.WriteByte(FixExt2.Byte()); err != nil {
+		if err := enl.dst.WriteByte(FixExt2.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext2 code`)
 		}
 	case l == 4:
-		if err := e.dst.WriteByte(FixExt4.Byte()); err != nil {
+		if err := enl.dst.WriteByte(FixExt4.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext4 code`)
 		}
 	case l == 8:
-		if err := e.dst.WriteByte(FixExt8.Byte()); err != nil {
+		if err := enl.dst.WriteByte(FixExt8.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext8 code`)
 		}
 	case l == 16:
-		if err := e.dst.WriteByte(FixExt16.Byte()); err != nil {
+		if err := enl.dst.WriteByte(FixExt16.Byte()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write fixext16 code`)
 		}
 	case l <= math.MaxUint8:
-		if err := e.dst.WriteByteUint8(Ext8.Byte(), uint8(l)); err != nil {
+		if err := enl.dst.WriteByteUint8(Ext8.Byte(), uint8(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext8 code and payload length`)
 		}
 	case l <= math.MaxUint16:
-		if err := e.dst.WriteByteUint16(Ext16.Byte(), uint16(l)); err != nil {
+		if err := enl.dst.WriteByteUint16(Ext16.Byte(), uint16(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext16 code and payload length`)
 		}
 	case l <= math.MaxUint32:
-		if err := e.dst.WriteByteUint32(Ext32.Byte(), uint32(l)); err != nil {
+		if err := enl.dst.WriteByteUint32(Ext32.Byte(), uint32(l)); err != nil {
 			return errors.Wrap(err, `msgpack: failed to write ext32 code and payload length`)
 		}
 	default:
