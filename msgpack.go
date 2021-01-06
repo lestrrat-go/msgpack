@@ -25,13 +25,8 @@ func releaseAppendingWriter(w *appendingWriter) {
 	appendingWriterPool.Put(w)
 }
 
-var encoderPool = sync.Pool {
+var encoderPool = sync.Pool{
 	New: func() interface{} { return NewEncoder(nil) },
-}
-
-func releaseEncoder(e Encoder) {
-	e.SetDestination(nil)
-	encoderPool.Put(e)
 }
 
 // Marshal takes a Go value and serializes it in msgpack format.
@@ -44,7 +39,10 @@ func Marshal(v interface{}) ([]byte, error) {
 	if err := enc.Encode(v); err != nil {
 		return nil, errors.Wrap(err, `failed to marshal`)
 	}
-	return buf.Bytes(), nil
+	raw := buf.Bytes()
+	ret := make([]byte, len(raw))
+	copy(ret, raw)
+	return ret, nil
 }
 
 // Unmarshal takes a byte slice and a pointer to a Go value and

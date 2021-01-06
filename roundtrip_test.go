@@ -17,6 +17,8 @@ type dummyStruct struct {
 type dummyStructList []*dummyStruct
 
 func TestRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	a := 1
 	b := 2
 	c := 3
@@ -38,21 +40,24 @@ func TestRoundTrip(t *testing.T) {
 		[]string{"uno", "dos", "tres"},
 		stringList{"uno", "dos", "tres"},
 		dummyStructList{
-			{ Message: "uno" },
-			{ Message: "dos" },
-			{ Message: "tres" },
+			{Message: "uno"},
+			{Message: "dos"},
+			{Message: "tres"},
 		},
 		[]*int{&a, &b, &c},
 		time.Now().Round(0),
-		dummyStruct{ Message: "Hello World!" },
+		dummyStruct{Message: "Hello World!"},
 	}
 
 	for _, data := range list {
+		data := data
 		t.Run(reflect.TypeOf(data).String(), func(t *testing.T) {
+			t.Parallel()
 			b, err := msgpack.Marshal(data)
 			if !assert.NoError(t, err, "Marshal should succeed") {
 				return
 			}
+
 			var v interface{} = reflect.New(reflect.TypeOf(data)).Interface()
 			if !assert.NoError(t, msgpack.Unmarshal(b, v), "Unmarshal should succeed") {
 				return

@@ -34,13 +34,13 @@ func (d *decoder) SetSource(r io.Reader) {
 	d.nl.SetSource(r)
 }
 
-func (d *decoderNL) SetSource(r io.Reader) {
-	d.raw = bufio.NewReader(r)
-	d.src = NewReader(d.raw)
+func (dnl *decoderNL) SetSource(r io.Reader) {
+	dnl.raw = bufio.NewReader(r)
+	dnl.src = NewReader(dnl.raw)
 }
 
-func (d *decoderNL) Reader() Reader {
-	return d.src
+func (dnl *decoderNL) Reader() Reader {
+	return dnl.src
 }
 
 func (dnl *decoderNL) ReadCode() (Code, error) {
@@ -701,17 +701,23 @@ func (dnl *decoderNL) decodeInterface(v interface{}) (interface{}, error) {
 	case code == Nil:
 		// Optimization: doesn't require any more handling than to
 		// throw away the code
-		dnl.raw.ReadByte()
+		if _, err := dnl.raw.ReadByte(); err != nil {
+			return nil, errors.Wrap(err, `msgpack: failed to ready byte`)
+		}
 		return nil, nil
 	case code == True:
 		// Optimization: doesn't require any more handling than to
 		// throw away the code
-		dnl.raw.ReadByte()
+		if _, err := dnl.raw.ReadByte(); err != nil {
+			return false, errors.Wrap(err, `msgpack: failed to read byte`)
+		}
 		return true, nil
 	case code == False:
 		// Optimization: doesn't require any more handling than to
 		// throw away the code
-		dnl.raw.ReadByte()
+		if _, err := dnl.raw.ReadByte(); err != nil {
+			return false, errors.Wrap(err, `msgpack: failed to read byte`)
+		}
 		return false, nil
 	case code == Int8:
 		var x int8

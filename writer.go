@@ -17,7 +17,7 @@ type writer struct {
 func NewWriter(w io.Writer) Writer {
 	return &writer{
 		dst: w,
-		buf : make([]byte, 9),
+		buf: make([]byte, 9),
 	}
 }
 

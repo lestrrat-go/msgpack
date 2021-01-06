@@ -293,8 +293,8 @@ func generateIntegerTypes(dst io.Writer) error {
 	})
 	for _, typ := range keys {
 		data := types[typ]
-		fmt.Fprintf(dst, "\n\nfunc (d *decoderNL) Decode%s(v *%s) error {", util.Ucfirst(typ.String()), typ)
-		fmt.Fprintf(dst, "\ncode, err := d.src.ReadByte()")
+		fmt.Fprintf(dst, "\n\nfunc (dnl *decoderNL) Decode%s(v *%s) error {", util.Ucfirst(typ.String()), typ)
+		fmt.Fprintf(dst, "\ncode, err := dnl.src.ReadByte()")
 		fmt.Fprintf(dst, "\nif err != nil {")
 		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read code for %s`)", data.Code)
 		fmt.Fprintf(dst, "\n}")
@@ -312,7 +312,7 @@ func generateIntegerTypes(dst io.Writer) error {
 		fmt.Fprintf(dst, "\nswitch Code(code) {")
 		for size := data.Bits; size >= 8; size /= 2 {
 			fmt.Fprintf(dst, "\ncase %s%d:", baseName, size)
-			fmt.Fprintf(dst, "\nx, err := d.src.ReadUint%d()", size)
+			fmt.Fprintf(dst, "\nx, err := dnl.src.ReadUint%d()", size)
 			fmt.Fprintf(dst, "\nif err != nil {")
 			fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read payload for %s`)", typ)
 			fmt.Fprintf(dst, "\n}")
@@ -339,8 +339,8 @@ func generateFloatTypes(dst io.Writer) error {
 	for _, typ := range keys {
 		data := types[typ]
 
-		fmt.Fprintf(dst, "\n\nfunc (d *decoderNL) Decode%s(v *%s) error {", util.Ucfirst(typ.String()), typ)
-		fmt.Fprintf(dst, "\ncode, x, err := d.src.ReadByteUint%d()", data.Bits)
+		fmt.Fprintf(dst, "\n\nfunc (dnl *decoderNL) Decode%s(v *%s) error {", util.Ucfirst(typ.String()), typ)
+		fmt.Fprintf(dst, "\ncode, x, err := dnl.src.ReadByteUint%d()", data.Bits)
 		fmt.Fprintf(dst, "\nif err != nil {")
 		fmt.Fprintf(dst, "\nreturn errors.Wrap(err, `msgpack: failed to read %s`)", typ)
 		fmt.Fprintf(dst, "\n}")

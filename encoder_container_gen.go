@@ -4,294 +4,294 @@ package msgpack
 
 import "github.com/pkg/errors"
 
-func (e *encoderNL) encodeMapBool(in interface{}) error {
+func (enl *encoderNL) encodeMapBool(in interface{}) error {
 	for k, v := range in.(map[string]bool) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapInt(in interface{}) error {
+func (enl *encoderNL) encodeMapInt(in interface{}) error {
 	for k, v := range in.(map[string]int) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapInt8(in interface{}) error {
+func (enl *encoderNL) encodeMapInt8(in interface{}) error {
 	for k, v := range in.(map[string]int8) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapInt16(in interface{}) error {
+func (enl *encoderNL) encodeMapInt16(in interface{}) error {
 	for k, v := range in.(map[string]int16) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapInt32(in interface{}) error {
+func (enl *encoderNL) encodeMapInt32(in interface{}) error {
 	for k, v := range in.(map[string]int32) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapInt64(in interface{}) error {
+func (enl *encoderNL) encodeMapInt64(in interface{}) error {
 	for k, v := range in.(map[string]int64) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapUint(in interface{}) error {
+func (enl *encoderNL) encodeMapUint(in interface{}) error {
 	for k, v := range in.(map[string]uint) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapUint8(in interface{}) error {
+func (enl *encoderNL) encodeMapUint8(in interface{}) error {
 	for k, v := range in.(map[string]uint8) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapUint16(in interface{}) error {
+func (enl *encoderNL) encodeMapUint16(in interface{}) error {
 	for k, v := range in.(map[string]uint16) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapUint32(in interface{}) error {
+func (enl *encoderNL) encodeMapUint32(in interface{}) error {
 	for k, v := range in.(map[string]uint32) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapUint64(in interface{}) error {
+func (enl *encoderNL) encodeMapUint64(in interface{}) error {
 	for k, v := range in.(map[string]uint64) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapFloat32(in interface{}) error {
+func (enl *encoderNL) encodeMapFloat32(in interface{}) error {
 	for k, v := range in.(map[string]float32) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapFloat64(in interface{}) error {
+func (enl *encoderNL) encodeMapFloat64(in interface{}) error {
 	for k, v := range in.(map[string]float64) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeMapString(in interface{}) error {
+func (enl *encoderNL) encodeMapString(in interface{}) error {
 	for k, v := range in.(map[string]string) {
-		if err := e.EncodeString(k); err != nil {
+		if err := enl.EncodeString(k); err != nil {
 			return errors.Wrap(err, `failed to encode key`)
 		}
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for %s`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayBool(in interface{}) error {
+func (enl *encoderNL) encodeArrayBool(in interface{}) error {
 	for k, v := range in.([]bool) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayInt(in interface{}) error {
+func (enl *encoderNL) encodeArrayInt(in interface{}) error {
 	for k, v := range in.([]int) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayInt8(in interface{}) error {
+func (enl *encoderNL) encodeArrayInt8(in interface{}) error {
 	for k, v := range in.([]int8) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayInt16(in interface{}) error {
+func (enl *encoderNL) encodeArrayInt16(in interface{}) error {
 	for k, v := range in.([]int16) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayInt32(in interface{}) error {
+func (enl *encoderNL) encodeArrayInt32(in interface{}) error {
 	for k, v := range in.([]int32) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayInt64(in interface{}) error {
+func (enl *encoderNL) encodeArrayInt64(in interface{}) error {
 	for k, v := range in.([]int64) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayUint(in interface{}) error {
+func (enl *encoderNL) encodeArrayUint(in interface{}) error {
 	for k, v := range in.([]uint) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayUint8(in interface{}) error {
+func (enl *encoderNL) encodeArrayUint8(in interface{}) error {
 	for k, v := range in.([]uint8) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayUint16(in interface{}) error {
+func (enl *encoderNL) encodeArrayUint16(in interface{}) error {
 	for k, v := range in.([]uint16) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayUint32(in interface{}) error {
+func (enl *encoderNL) encodeArrayUint32(in interface{}) error {
 	for k, v := range in.([]uint32) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayUint64(in interface{}) error {
+func (enl *encoderNL) encodeArrayUint64(in interface{}) error {
 	for k, v := range in.([]uint64) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayFloat32(in interface{}) error {
+func (enl *encoderNL) encodeArrayFloat32(in interface{}) error {
 	for k, v := range in.([]float32) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayFloat64(in interface{}) error {
+func (enl *encoderNL) encodeArrayFloat64(in interface{}) error {
 	for k, v := range in.([]float64) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}
 	return nil
 }
 
-func (e *encoderNL) encodeArrayString(in interface{}) error {
+func (enl *encoderNL) encodeArrayString(in interface{}) error {
 	for k, v := range in.([]string) {
-		if err := e.Encode(v); err != nil {
+		if err := enl.Encode(v); err != nil {
 			return errors.Wrapf(err, `failed to encode value for element %d`, k)
 		}
 	}

@@ -30,13 +30,23 @@ func WriteArrayHeader(dst io.Writer, c int) error {
 
 	switch {
 	case c < 16:
-		w.WriteByte(FixArray0.Byte() + byte(c))
+		if err := w.WriteByte(FixArray0.Byte() + byte(c)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write fixed array header`)
+		}
 	case c < math.MaxUint16:
-		w.WriteByte(Array16.Byte())
-		w.WriteUint16(uint16(c))
+		if err := w.WriteByte(Array16.Byte()); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write 16-bit array header prefix`)
+		}
+		if err := w.WriteUint16(uint16(c)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write 16-bit array header`)
+		}
 	case c < math.MaxUint32:
-		w.WriteByte(Array32.Byte())
-		w.WriteUint32(uint32(c))
+		if err := w.WriteByte(Array32.Byte()); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write 32-bit array header prefix`)
+		}
+		if err := w.WriteUint32(uint32(c)); err != nil {
+			return errors.Wrap(err, `msgpack: failed to write 32-bit array header`)
+		}
 	default:
 		return errors.Errorf(`msgpack: array element count out of range (%d)`, c)
 	}

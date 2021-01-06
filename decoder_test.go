@@ -14,6 +14,7 @@ import (
 )
 
 func unmarshalMatch(t *testing.T, src []byte, v interface{}, expected interface{}) {
+	t.Helper()
 	if !assert.NoError(t, msgpack.Unmarshal(src, v), "Unmarshal should succeed") {
 		return
 	}
@@ -27,6 +28,7 @@ func unmarshalMatch(t *testing.T, src []byte, v interface{}, expected interface{
 }
 
 func decodeMatch(t *testing.T, src io.Reader, v interface{}, expected interface{}) {
+	t.Helper()
 	if !assert.NoError(t, msgpack.NewDecoder(src).Decode(v), "Decode should succeed") {
 		return
 	}
@@ -40,42 +42,52 @@ func decodeMatch(t *testing.T, src io.Reader, v interface{}, expected interface{
 }
 
 func decodeTest(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
+	t.Helper()
 	decodeTestConcrete(t, code, b, e)
 	decodeTestInterface(t, code, b, e)
 }
 
 func decodeTestConcrete(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
+	t.Helper()
 	typ := reflect.TypeOf(e)
 	t.Run(fmt.Sprintf("decode %s via Unmarshal (concrete)", code), func(t *testing.T) {
+		t.Parallel()
 		v := reflect.New(typ).Elem().Interface()
 		unmarshalMatch(t, b, &v, e)
 	})
 
 	t.Run(fmt.Sprintf("decode %s via Decoder (concrete)", code), func(t *testing.T) {
+		t.Parallel()
 		v := reflect.New(typ).Elem().Interface()
 		decodeMatch(t, bytes.NewBuffer(b), &v, e)
 	})
 }
 
 func decodeTestInterface(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
+	t.Helper()
 	t.Run(fmt.Sprintf("decode %s via Unmarshal (interface{})", code), func(t *testing.T) {
+		t.Parallel()
 		var v interface{}
 		unmarshalMatch(t, b, &v, e)
 	})
 
 	t.Run(fmt.Sprintf("decode %s via Decoder (interface{})", code), func(t *testing.T) {
+		t.Parallel()
 		var v interface{}
 		decodeMatch(t, bytes.NewBuffer(b), &v, e)
 	})
 }
 
 func decodeTestString(t *testing.T, code msgpack.Code, b []byte, e interface{}) {
+	t.Helper()
 	decodeTest(t, code, b, e)
 	//	decodeTestMethod(t, code, "DecodeString", b, e)
 }
 
 func decodeTestMethod(t *testing.T, code msgpack.Code, method string, b []byte, e interface{}) {
+	t.Helper()
 	t.Run(fmt.Sprintf("decode %s via %s", code, method), func(t *testing.T) {
+		t.Parallel()
 		val := reflect.New(reflect.TypeOf(e))
 		dec := msgpack.NewDecoder(bytes.NewBuffer(b))
 		ret := reflect.ValueOf(dec).MethodByName(method).Call([]reflect.Value{val})
@@ -94,14 +106,17 @@ func decodeTestMethod(t *testing.T, code msgpack.Code, method string, b []byte, 
 }
 
 func TestDecodeNil(t *testing.T) {
+	t.Parallel()
 	var e interface{}
 	var b = []byte{msgpack.Nil.Byte()}
 
 	t.Run("decode via Unmarshal", func(t *testing.T) {
+		t.Parallel()
 		var v interface{}
 		unmarshalMatch(t, b, &v, e)
 	})
 	t.Run("decode via DecodeNil", func(t *testing.T) {
+		t.Parallel()
 		var v interface{} = &struct{}{}
 		buf := bytes.NewBuffer(b)
 		if !assert.NoError(t, msgpack.NewDecoder(buf).DecodeNil(&v), "DecodeNil should succeed") {
@@ -112,12 +127,14 @@ func TestDecodeNil(t *testing.T) {
 		}
 	})
 	t.Run("decode via Decoder (interface{})", func(t *testing.T) {
+		t.Parallel()
 		var v interface{} = 0xdeadcafe
 		decodeMatch(t, bytes.NewBuffer(b), &v, e)
 	})
 }
 
 func TestDecodeBool(t *testing.T) {
+	t.Parallel()
 	for _, code := range []msgpack.Code{msgpack.True, msgpack.False} {
 		var e bool
 		if code == msgpack.True {
@@ -131,6 +148,7 @@ func TestDecodeBool(t *testing.T) {
 }
 
 func TestDecodeFloat32(t *testing.T) {
+	t.Parallel()
 	var e = float32(math.MaxFloat32)
 	var b = make([]byte, 5)
 	b[0] = msgpack.Float.Byte()
@@ -141,6 +159,7 @@ func TestDecodeFloat32(t *testing.T) {
 }
 
 func TestDecodeFloat64(t *testing.T) {
+	t.Parallel()
 	var e = float64(math.MaxFloat64)
 	var b = make([]byte, 9)
 	b[0] = msgpack.Double.Byte()
@@ -151,6 +170,7 @@ func TestDecodeFloat64(t *testing.T) {
 }
 
 func TestDecodeUint8(t *testing.T) {
+	t.Parallel()
 	var e = uint8(math.MaxUint8)
 	var b = []byte{msgpack.Uint8.Byte(), byte(e)}
 
@@ -159,6 +179,7 @@ func TestDecodeUint8(t *testing.T) {
 }
 
 func TestDecodeUint16(t *testing.T) {
+	t.Parallel()
 	var e = uint16(math.MaxUint16)
 	var b = make([]byte, 3)
 	b[0] = msgpack.Uint16.Byte()
@@ -169,6 +190,7 @@ func TestDecodeUint16(t *testing.T) {
 }
 
 func TestDecodeUint32(t *testing.T) {
+	t.Parallel()
 	var e = uint32(math.MaxUint32)
 	var b = make([]byte, 5)
 	b[0] = msgpack.Uint32.Byte()
@@ -179,6 +201,7 @@ func TestDecodeUint32(t *testing.T) {
 }
 
 func TestDecodeUint64(t *testing.T) {
+	t.Parallel()
 	var e = uint64(math.MaxUint64)
 	var b = make([]byte, 9)
 	b[0] = msgpack.Uint64.Byte()
@@ -189,6 +212,7 @@ func TestDecodeUint64(t *testing.T) {
 }
 
 func TestDecodeInt8(t *testing.T) {
+	t.Parallel()
 	var e = int8(math.MaxInt8)
 	var b = []byte{msgpack.Int8.Byte(), byte(e)}
 
@@ -197,6 +221,7 @@ func TestDecodeInt8(t *testing.T) {
 }
 
 func TestDecodeInt16(t *testing.T) {
+	t.Parallel()
 	var e = int16(math.MaxInt16)
 	var b = make([]byte, 3)
 	b[0] = msgpack.Int16.Byte()
@@ -207,6 +232,7 @@ func TestDecodeInt16(t *testing.T) {
 }
 
 func TestDecodeInt32(t *testing.T) {
+	t.Parallel()
 	var e = int32(math.MaxInt32)
 	var b = make([]byte, 5)
 	b[0] = msgpack.Int32.Byte()
@@ -217,6 +243,7 @@ func TestDecodeInt32(t *testing.T) {
 }
 
 func TestDecodeInt64(t *testing.T) {
+	t.Parallel()
 	var e = int64(math.MaxInt64)
 	var b = make([]byte, 9)
 	b[0] = msgpack.Int64.Byte()
@@ -227,6 +254,7 @@ func TestDecodeInt64(t *testing.T) {
 }
 
 func TestDecodeStr8(t *testing.T) {
+	t.Parallel()
 	var l = math.MaxUint8
 	var e = makeString(l)
 	var b = make([]byte, l+2)
@@ -238,6 +266,7 @@ func TestDecodeStr8(t *testing.T) {
 }
 
 func TestDecodeStr16(t *testing.T) {
+	t.Parallel()
 	var l = math.MaxUint16
 	var e = makeString(l)
 	var b = make([]byte, l+3)
@@ -249,6 +278,7 @@ func TestDecodeStr16(t *testing.T) {
 }
 
 func TestDecodeStr32(t *testing.T) {
+	t.Parallel()
 	var l = math.MaxUint16 + 1
 	var e = makeString(l)
 	var b = make([]byte, l+5)
@@ -260,6 +290,7 @@ func TestDecodeStr32(t *testing.T) {
 }
 
 func TestDecodeFixStr(t *testing.T) {
+	t.Parallel()
 	for l := 1; l < 32; l++ {
 		var e = makeString(l)
 		var b = make([]byte, l+1)
@@ -271,6 +302,7 @@ func TestDecodeFixStr(t *testing.T) {
 }
 
 func TestDecodeStruct(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	w := msgpack.NewWriter(&buf)
 	w.WriteByte(msgpack.FixMap2.Byte())
@@ -305,6 +337,7 @@ type nestedOuter struct {
 }
 
 func TestDecodeArray(t *testing.T) {
+	t.Parallel()
 	var e []nestedOuter
 	e = append(e, nestedOuter{InnerStruct: &nestedInner{Foo: "Hello"}})
 
@@ -324,11 +357,13 @@ func TestDecodeArray(t *testing.T) {
 }
 
 func TestDecodeNestedStruct(t *testing.T) {
+	t.Parallel()
 	t.Run("regular case", func(t *testing.T) {
+		t.Parallel()
 		var e *nestedOuter = &nestedOuter{
 			InnerStruct: &nestedInner{Foo: "Hello"},
 			InnerSlice: []*nestedInner{
-				&nestedInner{Foo: "World"},
+				{Foo: "World"},
 			},
 		}
 
@@ -341,12 +376,12 @@ func TestDecodeNestedStruct(t *testing.T) {
 		if !assert.NoError(t, msgpack.Unmarshal(buf, &r), "Unmarshal should succeed") {
 			return
 		}
-
 	})
 	t.Run("unitinialized case", func(t *testing.T) {
+		t.Parallel()
 		var e *nestedOuter = &nestedOuter{
 			InnerSlice: []*nestedInner{
-				&nestedInner{Foo: "World"},
+				{Foo: "World"},
 			},
 		}
 
