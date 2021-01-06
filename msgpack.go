@@ -39,7 +39,10 @@ func Marshal(v interface{}) ([]byte, error) {
 	if err := enc.Encode(v); err != nil {
 		return nil, errors.Wrap(err, `failed to marshal`)
 	}
-	return buf.Bytes(), nil
+	raw := buf.Bytes()
+	ret := make([]byte, len(raw))
+	copy(ret, raw)
+	return ret, nil
 }
 
 // Unmarshal takes a byte slice and a pointer to a Go value and
