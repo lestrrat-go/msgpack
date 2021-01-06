@@ -1,6 +1,4 @@
-// +build bench
-
-package msgpack_test
+package bench_test
 
 import (
 	"bytes"
@@ -12,7 +10,7 @@ import (
 	"testing"
 
 	lestrrat "github.com/lestrrat-go/msgpack"
-	vmihailenco "gopkg.in/vmihailenco/msgpack.v2"
+	vmihailenco "github.com/vmihailenco/msgpack/v4"
 )
 
 type Decoder interface {
