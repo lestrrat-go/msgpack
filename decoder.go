@@ -10,20 +10,41 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewDecoder(r io.Reader) *Decoder {
-	raw := bufio.NewReader(r)
-	return &Decoder{
-		raw: raw,
-		src: NewReader(raw),
-	}
+// NewDecoder creates a Decoder instance
+func NewDecoder(r io.Reader) Decoder {
+	d := &decoder{nl: &decoderNL{}}
+	d.nl.SetSource(r)
+	return d
 }
 
-func (d *Decoder) Reader() Reader {
+// NewDecoderNoLock creates a new Decoder that DOES NOT protect
+// users against accidental race conditions caused by concurrent
+// method access. If you have complete control over the usage of
+// this object, then the object returned by this constructor will
+// shorten a whopping 30~50ns per method call. Use at your own peril
+func NewDecoderNoLock(r io.Reader) Decoder {
+	d := &decoderNL{}
+	d.SetSource(r)
+	return d
+}
+
+func (d *decoder) SetSource(r io.Reader) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.nl.SetSource(r)
+}
+
+func (d *decoderNL) SetSource(r io.Reader) {
+	d.raw = bufio.NewReader(r)
+	d.src = NewReader(d.raw)
+}
+
+func (d *decoderNL) Reader() Reader {
 	return d.src
 }
 
-func (d *Decoder) ReadCode() (Code, error) {
-	b, err := d.raw.ReadByte()
+func (dnl *decoderNL) ReadCode() (Code, error) {
+	b, err := dnl.raw.ReadByte()
 	if err != nil {
 		return Code(0), errors.Wrap(err, `msgpack: failed to read code`)
 	}
@@ -31,28 +52,28 @@ func (d *Decoder) ReadCode() (Code, error) {
 	return Code(b), nil
 }
 
-func (d *Decoder) PeekCode() (Code, error) {
-	code, err := d.ReadCode()
+func (dnl *decoderNL) PeekCode() (Code, error) {
+	code, err := dnl.ReadCode()
 	if err != nil {
 		return code, errors.Wrap(err, `msgpack: failed to peek code`)
 	}
 
-	if err := d.raw.UnreadByte(); err != nil {
+	if err := dnl.raw.UnreadByte(); err != nil {
 		return Code(0), errors.Wrap(err, `msgpack: failed to unread code`)
 	}
 	return code, nil
 }
 
-func (d *Decoder) isNil() bool {
-	code, err := d.PeekCode()
+func (dnl *decoderNL) isNil() bool {
+	code, err := dnl.PeekCode()
 	if err != nil {
 		return false
 	}
 	return code == Nil
 }
 
-func (d *Decoder) DecodeNil(v *interface{}) error {
-	code, err := d.ReadCode()
+func (dnl *decoderNL) DecodeNil(v *interface{}) error {
+	code, err := dnl.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
@@ -65,8 +86,8 @@ func (d *Decoder) DecodeNil(v *interface{}) error {
 	return nil
 }
 
-func (d *Decoder) DecodeBool(b *bool) error {
-	code, err := d.ReadCode()
+func (dnl *decoderNL) DecodeBool(b *bool) error {
+	code, err := dnl.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
@@ -83,8 +104,8 @@ func (d *Decoder) DecodeBool(b *bool) error {
 	}
 }
 
-func (d *Decoder) DecodeBytes(v *[]byte) error {
-	code, err := d.ReadCode()
+func (dnl *decoderNL) DecodeBytes(v *[]byte) error {
+	code, err := dnl.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
@@ -92,19 +113,19 @@ func (d *Decoder) DecodeBytes(v *[]byte) error {
 	var l int64
 	switch {
 	case code == Bin8:
-		v, err := d.src.ReadUint8()
+		v, err := dnl.src.ReadUint8()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
 		l = int64(v)
 	case code == Bin16:
-		v, err := d.src.ReadUint16()
+		v, err := dnl.src.ReadUint16()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
 		l = int64(v)
 	case code == Bin32:
-		v, err := d.src.ReadUint32()
+		v, err := dnl.src.ReadUint32()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
@@ -120,7 +141,7 @@ func (d *Decoder) DecodeBytes(v *[]byte) error {
 
 	b := make([]byte, l)
 	for x := b; len(x) > 0; {
-		n, err := d.raw.Read(x)
+		n, err := dnl.raw.Read(x)
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read byte slice`)
 		}
@@ -131,8 +152,8 @@ func (d *Decoder) DecodeBytes(v *[]byte) error {
 	return nil
 }
 
-func (d *Decoder) DecodeString(s *string) error {
-	code, err := d.ReadCode()
+func (dnl *decoderNL) DecodeString(s *string) error {
+	code, err := dnl.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
@@ -142,19 +163,19 @@ func (d *Decoder) DecodeString(s *string) error {
 	case code >= FixStr0 && code <= FixStr31:
 		l = int64(code.Byte() - FixStr0.Byte())
 	case code == Str8:
-		v, err := d.src.ReadUint8()
+		v, err := dnl.src.ReadUint8()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
 		l = int64(v)
 	case code == Str16:
-		v, err := d.src.ReadUint16()
+		v, err := dnl.src.ReadUint16()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
 		l = int64(v)
 	case code == Str32:
-		v, err := d.src.ReadUint32()
+		v, err := dnl.src.ReadUint32()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read length for string/byte slice`)
 		}
@@ -180,7 +201,7 @@ func (d *Decoder) DecodeString(s *string) error {
 	buf.Grow(int(l))
 	b := buf.Bytes()
 	for x := b[:l]; len(x) > 0; {
-		n, err := d.raw.Read(x)
+		n, err := dnl.raw.Read(x)
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read string`)
 		}
@@ -191,8 +212,8 @@ func (d *Decoder) DecodeString(s *string) error {
 	return nil
 }
 
-func (d *Decoder) DecodeArrayLength(l *int) error {
-	code, err := d.ReadCode()
+func (dnl *decoderNL) DecodeArrayLength(l *int) error {
+	code, err := dnl.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
@@ -204,13 +225,13 @@ func (d *Decoder) DecodeArrayLength(l *int) error {
 
 	switch code {
 	case Array16:
-		s, err := d.src.ReadUint16()
+		s, err := dnl.src.ReadUint16()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read array size for Array16`)
 		}
 		*l = int(s)
 	case Array32:
-		s, err := d.src.ReadUint32()
+		s, err := dnl.src.ReadUint32()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read array size for Array32`)
 		}
@@ -222,9 +243,9 @@ func (d *Decoder) DecodeArrayLength(l *int) error {
 	return nil
 }
 
-func (d *Decoder) DecodeArray(v interface{}) error {
+func (dnl *decoderNL) DecodeArray(v interface{}) error {
 	var size int
-	if err := d.DecodeArrayLength(&size); err != nil {
+	if err := dnl.DecodeArrayLength(&size); err != nil {
 		return errors.Wrap(err, `msgpack: failed to decode array length`)
 	}
 
@@ -247,7 +268,7 @@ func (d *Decoder) DecodeArray(v interface{}) error {
 		} else {
 			e = e.Addr()
 		}
-		if err := d.Decode(e.Interface()); err != nil {
+		if err := dnl.Decode(e.Interface()); err != nil {
 			return errors.Wrapf(err, `msgpack: failed to decode array element %d`, i)
 		}
 	}
@@ -256,8 +277,8 @@ func (d *Decoder) DecodeArray(v interface{}) error {
 	return nil
 }
 
-func (d *Decoder) DecodeMapLength(l *int) error {
-	code, err := d.ReadCode()
+func (dnl *decoderNL) DecodeMapLength(l *int) error {
+	code, err := dnl.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
@@ -274,13 +295,13 @@ func (d *Decoder) DecodeMapLength(l *int) error {
 
 	switch code {
 	case Map16:
-		s, err := d.src.ReadUint16()
+		s, err := dnl.src.ReadUint16()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read array size for Map16`)
 		}
 		*l = int(s)
 	case Map32:
-		s, err := d.src.ReadUint32()
+		s, err := dnl.src.ReadUint32()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read array size for Map32`)
 		}
@@ -292,9 +313,9 @@ func (d *Decoder) DecodeMapLength(l *int) error {
 	return nil
 }
 
-func (d *Decoder) DecodeMap(v *map[string]interface{}) error {
+func (dnl *decoderNL) DecodeMap(v *map[string]interface{}) error {
 	var size int
-	if err := d.DecodeMapLength(&size); err != nil {
+	if err := dnl.DecodeMapLength(&size); err != nil {
 		return errors.Wrap(err, `msgpack: failed to decode map length`)
 	}
 
@@ -306,12 +327,12 @@ func (d *Decoder) DecodeMap(v *map[string]interface{}) error {
 	m := make(map[string]interface{})
 	for i := 0; i < size; i++ {
 		var s string
-		if err := d.DecodeString(&s); err != nil {
+		if err := dnl.DecodeString(&s); err != nil {
 			return errors.Wrap(err, `msgpack: failed to decode map key`)
 		}
 
 		var v interface{}
-		if err := d.Decode(&v); err != nil {
+		if err := dnl.Decode(&v); err != nil {
 			return errors.Wrapf(err, `msgpack: failed to decode map element for key %s`, s)
 		}
 		m[s] = v
@@ -320,9 +341,9 @@ func (d *Decoder) DecodeMap(v *map[string]interface{}) error {
 	return nil
 }
 
-func (d *Decoder) DecodeTime(v *time.Time) error {
+func (dnl *decoderNL) DecodeTime(v *time.Time) error {
 	var size int
-	if err := d.DecodeArrayLength(&size); err != nil {
+	if err := dnl.DecodeArrayLength(&size); err != nil {
 		return errors.Wrap(err, `msgpack: failed to decode array length for time.Time`)
 	}
 	if size != 2 {
@@ -330,11 +351,11 @@ func (d *Decoder) DecodeTime(v *time.Time) error {
 	}
 
 	var seconds int64
-	if err := d.DecodeInt64(&seconds); err != nil {
+	if err := dnl.DecodeInt64(&seconds); err != nil {
 		return errors.Wrap(err, `msgpack: failed to decode seconds part for time.Time`)
 	}
 	var nanosecs int
-	if err := d.DecodeInt(&nanosecs); err != nil {
+	if err := dnl.DecodeInt(&nanosecs); err != nil {
 		return errors.Wrap(err, `msgpack: failed to decode nanoseconds part for time.Time`)
 	}
 
@@ -342,17 +363,17 @@ func (d *Decoder) DecodeTime(v *time.Time) error {
 	return nil
 }
 
-func (d *Decoder) DecodeStruct(v interface{}) error {
+func (dnl *decoderNL) DecodeStruct(v interface{}) error {
 	if v, ok := v.(DecodeMsgpacker); ok {
-		return d.DecodeExt(v)
+		return dnl.DecodeExt(v)
 	}
 
 	if v, ok := v.(*time.Time); ok {
-		return d.DecodeTime(v)
+		return dnl.DecodeTime(v)
 	}
 
 	var size int
-	if err := d.DecodeMapLength(&size); err != nil {
+	if err := dnl.DecodeMapLength(&size); err != nil {
 		return errors.Wrap(err, `msgpack: failed to decode map length`)
 	}
 
@@ -388,7 +409,7 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 
 	var key string
 	for i := 0; i < size; i++ {
-		if err := d.Decode(&key); err != nil {
+		if err := dnl.Decode(&key); err != nil {
 			return errors.Wrapf(err, `msgpack: failed to decode struct key at index %d`, i)
 		}
 
@@ -396,8 +417,8 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 		if !ok {
 			continue
 		}
-		if d.isNil() {
-			if err := d.DecodeNil(nil); err != nil {
+		if dnl.isNil() {
+			if err := dnl.DecodeNil(nil); err != nil {
 				return errors.Wrapf(err, `msgpack: failed to decode nil field %s`, key)
 			}
 			continue
@@ -405,17 +426,17 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 
 		if f.Kind() == reflect.Slice {
 			r := reflect.New(f.Type()).Elem()
-			if err := d.Decode(r.Addr().Interface()); err != nil {
+			if err := dnl.Decode(r.Addr().Interface()); err != nil {
 				return errors.Wrapf(err, `msgpack: failed to decode slice value for key %s`, key)
 			}
 			f.Set(r)
 		} else if f.Kind() == reflect.Struct {
-			if err := d.Decode(f.Addr().Interface()); err != nil {
+			if err := dnl.Decode(f.Addr().Interface()); err != nil {
 				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (struct)`, key)
 			}
 		} else if f.Kind() == reflect.Ptr && f.Type().Elem().Kind() == reflect.Struct {
 			r := reflect.New(f.Type().Elem())
-			if err := d.Decode(r.Interface()); err != nil {
+			if err := dnl.Decode(r.Interface()); err != nil {
 				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (pointer to struct)`, key)
 			}
 			f.Set(r)
@@ -426,7 +447,7 @@ func (d *Decoder) DecodeStruct(v interface{}) error {
 			} else {
 				fv = reflect.New(f.Type())
 			}
-			if err := d.Decode(fv.Interface()); err != nil {
+			if err := dnl.Decode(fv.Interface()); err != nil {
 				return errors.Wrapf(err, `msgpack: failed to decode struct value for key %s (not struct/pointer to struct)`, key)
 			}
 
@@ -533,11 +554,7 @@ func assignIfCompatible(dst, src reflect.Value) (err error) {
 
 var emptyInterfaceType = reflect.TypeOf((*interface{})(nil)).Elem()
 
-// Decode takes a pointer to a variable, and populates it with the value
-// that was unmarshaled from the stream.
-//
-// If the variable is a non-pointer or nil, an error is returned.
-func (d *Decoder) Decode(v interface{}) error {
+func (dnl *decoderNL) Decode(v interface{}) error {
 	rv := reflect.ValueOf(v)
 
 	// The result of decoding must be assigned to v, and v
@@ -564,49 +581,49 @@ func (d *Decoder) Decode(v interface{}) error {
 	case *interface{}:
 		goto FromCode
 	case *int:
-		return d.DecodeInt(v)
+		return dnl.DecodeInt(v)
 	case *int8:
-		return d.DecodeInt8(v)
+		return dnl.DecodeInt8(v)
 	case *int16:
-		return d.DecodeInt16(v)
+		return dnl.DecodeInt16(v)
 	case *int32:
-		return d.DecodeInt32(v)
+		return dnl.DecodeInt32(v)
 	case *int64:
-		return d.DecodeInt64(v)
+		return dnl.DecodeInt64(v)
 	case *uint:
-		return d.DecodeUint(v)
+		return dnl.DecodeUint(v)
 	case *uint8:
-		return d.DecodeUint8(v)
+		return dnl.DecodeUint8(v)
 	case *uint16:
-		return d.DecodeUint16(v)
+		return dnl.DecodeUint16(v)
 	case *uint32:
-		return d.DecodeUint32(v)
+		return dnl.DecodeUint32(v)
 	case *uint64:
-		return d.DecodeUint64(v)
+		return dnl.DecodeUint64(v)
 	case *float32:
-		return d.DecodeFloat32(v)
+		return dnl.DecodeFloat32(v)
 	case *float64:
-		return d.DecodeFloat64(v)
+		return dnl.DecodeFloat64(v)
 	case *[]byte:
-		return d.DecodeBytes(v)
+		return dnl.DecodeBytes(v)
 	case *string:
-		return d.DecodeString(v)
+		return dnl.DecodeString(v)
 	case *map[string]interface{}:
-		return d.DecodeMap(v)
+		return dnl.DecodeMap(v)
 	case DecodeMsgpacker:
 		// If we know this object does its own decoding, we bypass everything
 		// and just let it handle itself
-		return v.DecodeMsgpack(d)
+		return v.DecodeMsgpack(dnl)
 	}
 
 	// Next up: try using reflect to find out the general family of
 	// the payload.
 	switch rv.Elem().Kind() {
 	case reflect.Struct:
-		return d.DecodeStruct(v)
+		return dnl.DecodeStruct(v)
 	case reflect.Slice:
 		list := reflect.New(rv.Elem().Type())
-		if err := d.DecodeArray(list.Interface()); err != nil {
+		if err := dnl.DecodeArray(list.Interface()); err != nil {
 			return errors.Wrap(err, `msgpack: failed to decode array`)
 		}
 		if err := assignIfCompatible(reflect.ValueOf(v).Elem(), list.Elem()); err != nil {
@@ -616,7 +633,7 @@ func (d *Decoder) Decode(v interface{}) error {
 	}
 
 FromCode:
-	decoded, err := d.decodeInterface(v)
+	decoded, err := dnl.decodeInterface(v)
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to decode interface value`)
 	}
@@ -656,8 +673,8 @@ FromCode:
 }
 
 // Note: v is only used as a hint. do not assign to it inside this method
-func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
-	code, err := d.PeekCode()
+func (dnl *decoderNL) decodeInterface(v interface{}) (interface{}, error) {
+	code, err := dnl.PeekCode()
 	if err != nil {
 		return nil, errors.Wrap(err, `msgpack: failed to peek code`)
 	}
@@ -665,17 +682,17 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 	switch {
 	case IsExtFamily(code):
 		var size int
-		if err := d.DecodeExtLength(&size); err != nil {
+		if err := dnl.DecodeExtLength(&size); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to read extension sizes`)
 		}
 
 		var typ reflect.Type
-		if err := d.DecodeExtType(&typ); err != nil {
+		if err := dnl.DecodeExtType(&typ); err != nil {
 			return nil, errors.Wrap(err, `msgpack: faied to read extension type`)
 		}
 
 		rv := reflect.New(typ).Interface().(DecodeMsgpacker)
-		if err := rv.DecodeMsgpack(d); err != nil {
+		if err := rv.DecodeMsgpack(dnl); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode extension`)
 		}
 		return rv, nil
@@ -684,93 +701,93 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 	case code == Nil:
 		// Optimization: doesn't require any more handling than to
 		// throw away the code
-		d.raw.ReadByte()
+		dnl.raw.ReadByte()
 		return nil, nil
 	case code == True:
 		// Optimization: doesn't require any more handling than to
 		// throw away the code
-		d.raw.ReadByte()
+		dnl.raw.ReadByte()
 		return true, nil
 	case code == False:
 		// Optimization: doesn't require any more handling than to
 		// throw away the code
-		d.raw.ReadByte()
+		dnl.raw.ReadByte()
 		return false, nil
 	case code == Int8:
 		var x int8
-		if err := d.DecodeInt8(&x); err != nil {
+		if err := dnl.DecodeInt8(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Int8`)
 		}
 		return x, nil
 	case code == Int16:
 		var x int16
-		if err := d.DecodeInt16(&x); err != nil {
+		if err := dnl.DecodeInt16(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Int16`)
 		}
 		return x, nil
 	case code == Int32:
 		var x int32
-		if err := d.DecodeInt32(&x); err != nil {
+		if err := dnl.DecodeInt32(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Int32`)
 		}
 		return x, nil
 	case code == Int64:
 		var x int64
-		if err := d.DecodeInt64(&x); err != nil {
+		if err := dnl.DecodeInt64(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Int64`)
 		}
 		return x, nil
 	case code == Uint8:
 		var x uint8
-		if err := d.DecodeUint8(&x); err != nil {
+		if err := dnl.DecodeUint8(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Uint8`)
 		}
 		return x, nil
 	case code == Uint16:
 		var x uint16
-		if err := d.DecodeUint16(&x); err != nil {
+		if err := dnl.DecodeUint16(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Uint16`)
 		}
 		return x, nil
 	case code == Uint32:
 		var x uint32
-		if err := d.DecodeUint32(&x); err != nil {
+		if err := dnl.DecodeUint32(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Uint32`)
 		}
 		return x, nil
 	case code == Uint64:
 		var x uint64
-		if err := d.DecodeUint64(&x); err != nil {
+		if err := dnl.DecodeUint64(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Uint64`)
 		}
 		return x, nil
 	case code == Float:
 		var x float32
-		if err := d.DecodeFloat32(&x); err != nil {
+		if err := dnl.DecodeFloat32(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Float`)
 		}
 		return x, nil
 	case code == Double:
 		var x float64
-		if err := d.DecodeFloat64(&x); err != nil {
+		if err := dnl.DecodeFloat64(&x); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode Double`)
 		}
 		return x, nil
 	case IsBinFamily(code):
 		var b []byte
-		if err := d.DecodeBytes(&b); err != nil {
+		if err := dnl.DecodeBytes(&b); err != nil {
 			return nil, errors.Wrapf(err, `msgpack: failed to decode %s`, code)
 		}
 		return b, nil
 	case IsStrFamily(code):
 		var s string
-		if err := d.DecodeString(&s); err != nil {
+		if err := dnl.DecodeString(&s); err != nil {
 			return nil, errors.Wrapf(err, `msgpack: failed to decode %s`, code)
 		}
 		return s, nil
 	case IsArrayFamily(code):
 		var l []interface{}
-		if err := d.DecodeArray(&l); err != nil {
+		if err := dnl.DecodeArray(&l); err != nil {
 			return nil, errors.Wrapf(err, `msgpack: failed to decode %s`, code)
 		}
 		return l, nil
@@ -790,7 +807,7 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 			}
 			if rv.Kind() == reflect.Struct {
 				v := reflect.New(rv.Type()).Interface()
-				if err := d.DecodeStruct(v); err != nil {
+				if err := dnl.DecodeStruct(v); err != nil {
 					return nil, errors.Wrap(err, `msgpack: failed to decode struct`)
 				}
 				return reflect.ValueOf(v).Elem().Interface(), nil
@@ -798,7 +815,7 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 		}
 
 		var v = make(map[string]interface{})
-		if err := d.DecodeMap(&v); err != nil {
+		if err := dnl.DecodeMap(&v); err != nil {
 			return nil, errors.Wrap(err, `msgpack: failed to decode map`)
 		}
 		return v, nil
@@ -807,8 +824,8 @@ func (d *Decoder) decodeInterface(v interface{}) (interface{}, error) {
 	}
 }
 
-func (d *Decoder) DecodeExtLength(l *int) error {
-	code, err := d.ReadCode()
+func (dnl *decoderNL) DecodeExtLength(l *int) error {
+	code, err := dnl.ReadCode()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read code`)
 	}
@@ -826,19 +843,19 @@ func (d *Decoder) DecodeExtLength(l *int) error {
 	case FixExt16:
 		payloadSize = 16
 	case Ext8:
-		s, err := d.src.ReadUint8()
+		s, err := dnl.src.ReadUint8()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read size for ext8 value`)
 		}
 		payloadSize = int(s)
 	case Ext16:
-		s, err := d.src.ReadUint16()
+		s, err := dnl.src.ReadUint16()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read size for ext16 value`)
 		}
 		payloadSize = int(s)
 	case Ext32:
-		s, err := d.src.ReadUint32()
+		s, err := dnl.src.ReadUint32()
 		if err != nil {
 			return errors.Wrap(err, `msgpack: failed to read size for ext32 value`)
 		}
@@ -850,14 +867,14 @@ func (d *Decoder) DecodeExtLength(l *int) error {
 	return nil
 }
 
-func (d *Decoder) DecodeExt(v DecodeMsgpacker) error {
+func (dnl *decoderNL) DecodeExt(v DecodeMsgpacker) error {
 	var size int
-	if err := d.DecodeExtLength(&size); err != nil {
+	if err := dnl.DecodeExtLength(&size); err != nil {
 		return errors.Wrap(err, `msgpack: failed to read extension sizes`)
 	}
 
 	var typ reflect.Type
-	if err := d.DecodeExtType(&typ); err != nil {
+	if err := dnl.DecodeExtType(&typ); err != nil {
 		return errors.Wrap(err, `msgpack: faied to read extension type`)
 	}
 
@@ -865,14 +882,14 @@ func (d *Decoder) DecodeExt(v DecodeMsgpacker) error {
 		return errors.Errorf(`msgpack: extension should be %s, got %s`, typ, rt)
 	}
 
-	if err := v.DecodeMsgpack(d); err != nil {
+	if err := v.DecodeMsgpack(dnl); err != nil {
 		return errors.Wrap(err, `msgpack: failed to call DecodeMsgpack`)
 	}
 	return nil
 }
 
-func (d *Decoder) DecodeExtType(v *reflect.Type) error {
-	t, err := d.src.ReadUint8()
+func (dnl *decoderNL) DecodeExtType(v *reflect.Type) error {
+	t, err := dnl.src.ReadUint8()
 	if err != nil {
 		return errors.Wrap(err, `msgpack: failed to read type for extension`)
 	}

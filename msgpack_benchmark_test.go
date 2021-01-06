@@ -221,6 +221,13 @@ var encoders = []struct {
 		},
 	},
 	{
+		Name:    "lestrrat_nl",
+		Encoder: lestrrat.NewEncoderNoLock(ioutil.Discard),
+		MakeDecoder: func(r io.Reader) interface{} {
+			return lestrrat.NewDecoderNoLock(r)
+		},
+	},
+	{
 		Name:    "vmihailenco",
 		Encoder: VmihailencoEncoder{Encoder: vmihailenco.NewEncoder(ioutil.Discard)},
 		MakeDecoder: func(r io.Reader) interface{} {
